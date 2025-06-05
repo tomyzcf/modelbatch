@@ -1,0 +1,284 @@
+{
+  "name": "LLM批处理工具",
+  "version": "2.0.0",
+  "description": "基于React + Node.js的现代化LLM批量数据处理工具，支持多种文件格式、API提供商和实时进度监控",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/modelbatch.git"
+  },
+  "author": "Your Name",
+  "license": "MIT",
+  "generatedAt": "2025-01-09T12:00:00.000Z",
+  
+  "architecture": {
+    "type": "Full-Stack Web Application",
+    "frontend": "React 18 + Vite + Ant Design",
+    "backend": "Node.js + Express + Socket.IO",
+    "deployment": "Docker / PM2 / Local Development"
+  },
+  
+  "features": [
+    "支持CSV、Excel、JSON文件批量处理",
+    "兼容OpenAI、DeepSeek、阿里云百炼等多种LLM API",
+    "实时WebSocket进度推送和状态监控",
+    "断点续传功能，支持任务中断恢复",
+    "完善的错误处理和重试机制",
+    "现代化React前端界面，友好的用户体验",
+    "灵活的字段选择和数据处理配置",
+    "多种提示词模板和JSON配置支持",
+    "自动文件格式识别和编码检测",
+    "详细的处理结果输出和错误记录"
+  ],
+  
+  "technicalStack": {
+    "frontend": {
+      "framework": "React 18.2.0",
+      "buildTool": "Vite 4.0+",
+      "uiLibrary": "Ant Design 5.0+",
+      "stateManagement": "Zustand",
+      "fileProcessing": ["Papa Parse", "SheetJS"],
+      "realTimeCommunication": "Socket.IO Client"
+    },
+    "backend": {
+      "runtime": "Node.js 16+",
+      "framework": "Express.js",
+      "fileUpload": "Multer",
+      "realTimeCommunication": "Socket.IO",
+      "utilities": ["fs", "path", "csv-parser", "xlsx"]
+    },
+    "deployment": {
+      "containerization": "Docker",
+      "processManager": "PM2",
+      "reverseProxy": "Nginx (optional)",
+      "environments": ["Development", "Production", "Docker"]
+    }
+  },
+  
+  "projectStructure": {
+    "src/": "React前端源码目录",
+    "src/components/": "通用UI组件",
+    "src/pages/": "页面组件",
+    "src/stores/": "Zustand状态管理",
+    "src/utils/": "前端工具函数",
+    "src/templates/": "提示词模板",
+    "server/": "Node.js后端服务",
+    "server/index.js": "Express服务器入口",
+    "server/lib/": "核心业务逻辑模块",
+    "server/lib/core/": "核心处理器（批处理、进度跟踪、文件读取）",
+    "server/lib/providers/": "API提供商（LLM、阿里云百炼）",
+    "server/lib/utils/": "后端工具类（日志、文件、配置）",
+    "dist/": "前端构建产物",
+    "temp/": "临时文件和上传缓存（被忽略）",
+    "outputData/": "处理结果输出目录（被忽略）",
+    "testdata/": "测试数据目录（被忽略）",
+    "docs/": "项目文档"
+  },
+  
+  "commands": {
+    "development": {
+      "npm install": "安装项目依赖",
+      "npm run dev": "启动前端开发服务器（端口5173）",
+      "npm run server": "启动后端服务（端口3001）",
+      "npm run dev:full": "同时启动前后端服务（推荐）"
+    },
+    "production": {
+      "npm run build": "构建前端生产版本",
+      "npm run preview": "预览生产版本",
+      "npm ci --only=production": "安装生产依赖",
+      "node server/index.js": "启动生产服务器"
+    },
+    "deployment": {
+      "pm2 start ecosystem.config.js": "使用PM2启动服务",
+      "docker-compose up -d": "使用Docker Compose部署",
+      "npm run build && pm2 restart all": "构建并重启服务"
+    }
+  },
+  
+  "systemRequirements": {
+    "runtime": {
+      "nodeVersion": "16.0.0+",
+      "npmVersion": "7.0.0+",
+      "memory": "512MB minimum, 1GB recommended",
+      "storage": "500MB available space",
+      "network": "Internet access for LLM APIs"
+    },
+    "operatingSystem": [
+      "Windows 10+",
+      "macOS 10.15+",
+      "Ubuntu 18.04+",
+      "CentOS 7+",
+      "Debian 10+"
+    ],
+    "ports": {
+      "3001": "后端API服务",
+      "5173": "前端开发服务器",
+      "3000": "前端生产服务器（可选）"
+    }
+  },
+  
+  "deployment": {
+    "environments": {
+      "development": {
+        "description": "本地开发环境",
+        "commands": ["npm install", "npm run dev:full"],
+        "urls": {
+          "frontend": "http://localhost:5173",
+          "backend": "http://localhost:3001"
+        }
+      },
+      "production": {
+        "description": "生产环境部署",
+        "requirements": ["PM2", "Nginx (optional)", "SSL Certificate (recommended)"],
+        "steps": [
+          "安装Node.js和npm",
+          "克隆项目代码",
+          "npm ci --only=production",
+          "npm run build",
+          "配置PM2",
+          "启动服务"
+        ]
+      },
+      "docker": {
+        "description": "Docker容器化部署",
+        "requirements": ["Docker", "Docker Compose"],
+        "files": ["Dockerfile", "docker-compose.yml"],
+        "commands": ["docker-compose up -d"]
+      }
+    }
+  },
+  
+  "apiSupport": {
+    "llmProviders": {
+      "general": {
+        "description": "通用LLM API接口",
+        "supportedAPIs": ["OpenAI GPT", "DeepSeek Chat", "Other OpenAI-compatible APIs"],
+        "configFormat": {
+          "api_type": "llm",
+          "api_url": "API endpoint URL",
+          "api_key": "API authentication key",
+          "model": "Model name"
+        }
+      },
+      "aliyunAgent": {
+        "description": "阿里云百炼Agent专用接口",
+        "supportedAPIs": ["阿里云百炼平台"],
+        "configFormat": {
+          "api_type": "aliyun_agent",
+          "api_url": "阿里云API地址",
+          "api_key": "API密钥",
+          "app_id": "应用ID"
+        }
+      }
+    }
+  },
+  
+  "fileFormats": {
+    "input": {
+      "csv": "逗号分隔值文件，支持多种编码",
+      "excel": "Excel文件（.xlsx, .xls）",
+      "json": "JSON格式数据文件"
+    },
+    "output": {
+      "processed_data.csv": "成功处理的数据结果",
+      "error_records.csv": "错误记录和重试信息",
+      "task_progress.json": "任务进度和统计信息",
+      "raw_responses.jsonl": "原始API响应（可选）"
+    }
+  },
+  
+  "coreModules": {
+    "frontend": [
+      "src/pages/DataUpload.jsx - 数据上传页面",
+      "src/pages/ConfigManagement.jsx - 配置管理页面", 
+      "src/pages/TaskExecution.jsx - 任务执行页面",
+      "src/pages/ResultView.jsx - 结果查看页面",
+      "src/stores/useAppStore.js - 应用状态管理",
+      "src/utils/fileUtils.js - 文件处理工具",
+      "src/utils/socketClient.js - WebSocket客户端"
+    ],
+    "backend": [
+      "server/index.js - Express服务器入口",
+      "server/lib/core/batchProcessor.js - 批处理引擎",
+      "server/lib/core/progressTracker.js - 进度跟踪器", 
+      "server/lib/core/fileReader.js - 文件读取器",
+      "server/lib/core/batchReader.js - 批次数据处理器",
+      "server/lib/providers/llmProvider.js - LLM API提供商",
+      "server/lib/providers/aliyunProvider.js - 阿里云百炼API",
+      "server/lib/utils/logger.js - 日志管理器",
+      "server/lib/utils/fileHelper.js - 文件操作工具",
+      "server/lib/utils/config.js - 配置管理器"
+    ]
+  },
+  
+  "migration": {
+    "from": "Python版本（main.py + 相关脚本）",
+    "to": "Node.js + React完整重构版本",
+    "status": "完成",
+    "improvements": [
+      "更好的用户界面和交互体验",
+      "实时进度推送和状态监控",
+      "更灵活的配置管理",
+      "更高的处理性能",
+      "完善的错误处理和重试机制",
+      "模块化的代码架构",
+      "更好的可维护性和扩展性"
+    ],
+    "compatibility": "100%功能兼容，API接口保持一致"
+  },
+  
+  "security": {
+    "fileUpload": "50MB大小限制，类型检查",
+    "apiKeys": "配置文件存储，不在代码中硬编码",
+    "errorHandling": "完善的异常处理，防止信息泄露",
+    "inputValidation": "输入参数验证和清理",
+    "recommendations": [
+      "生产环境使用HTTPS",
+      "配置防火墙规则",
+      "定期更新依赖包",
+      "设置访问日志监控"
+    ]
+  },
+  
+  "performance": {
+    "batchProcessing": "支持大文件分批处理，避免内存溢出",
+    "concurrency": "可配置的并发处理数量",
+    "memoryManagement": "自动资源清理和垃圾回收",
+    "optimization": [
+      "文件流式读取",
+      "WebSocket长连接复用",
+      "前端虚拟滚动（大数据量）",
+      "后端批次处理优化"
+    ]
+  },
+  
+  "documentation": {
+    "README.md": "项目整体说明文档",
+    "DEPLOYMENT.md": "详细部署指南",
+    "PROJECT_INFO.json": "项目信息和配置",
+    "server/README.md": "后端开发文档",
+    "frontend_mvp_plan.md": "前端开发计划"
+  },
+  
+  "testing": {
+    "testData": "testdata/ 目录包含测试数据（已被gitignore）",
+    "mockTesting": "支持Mock API测试模式",
+    "integrationTesting": "完整工作流程端到端测试",
+    "unitTesting": "核心模块单元测试"
+  },
+  
+  "future": {
+    "plannedFeatures": [
+      "用户认证和权限管理",
+      "任务历史记录和统计",
+      "更多LLM API提供商支持",
+      "自定义插件系统",
+      "集群化部署支持"
+    ],
+    "technicalImprovements": [
+      "TypeScript重构",
+      "更完善的测试覆盖",
+      "性能监控和分析",
+      "国际化支持"
+    ]
+  }
+} 
