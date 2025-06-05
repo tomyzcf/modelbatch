@@ -1,0 +1,73 @@
+{
+  "name": "LLM批处理工具",
+  "version": "2.0.0",
+  "description": "完全重构的Node.js版本LLM批处理工具，支持多种文件格式和API提供商",
+  "architecture": "React前端 + Node.js后端",
+  "generatedAt": "2025-06-05T21:21:19.892Z",
+  "features": [
+    "支持CSV、Excel、JSON文件批量处理",
+    "LLM通用接口和阿里云Agent专用接口",
+    "断点续传功能，支持任务中断恢复",
+    "完善的错误处理和重试机制",
+    "实时WebSocket进度推送",
+    "灵活的字段选择和数据处理",
+    "现代化的React前端界面"
+  ],
+  "structure": {
+    "frontend/": "项目根目录",
+    "frontend/src/": "React前端源码",
+    "frontend/server/": "Node.js后端服务",
+    "frontend/server/lib/core/": "核心处理器",
+    "frontend/server/lib/providers/": "API提供商",
+    "frontend/server/lib/utils/": "工具类",
+    "frontend/testdata/": "测试数据"
+  },
+  "commands": {
+    "npm install": "安装依赖",
+    "npm run server": "启动后端服务",
+    "npm run dev": "启动前端开发服务器",
+    "npm run dev:full": "同时启动前后端",
+    "npm run build": "构建生产版本"
+  },
+  "deployment": {
+    "requirements": [
+      "Node.js 16+",
+      "npm 或 yarn",
+      "至少512MB内存",
+      "支持的操作系统：Windows、macOS、Linux"
+    ],
+    "ports": [
+      "3001: 后端API服务",
+      "5173: 前端开发服务器",
+      "3000: 前端生产服务器"
+    ],
+    "environment": [
+      "确保API密钥正确配置",
+      "检查网络连接",
+      "设置合适的文件权限"
+    ]
+  },
+  "coreFiles": [
+    "frontend/server/index.js",
+    "frontend/server/lib/core/batchProcessor.js",
+    "frontend/server/lib/core/progressTracker.js",
+    "frontend/server/lib/core/fileReader.js",
+    "frontend/server/lib/core/batchReader.js",
+    "frontend/server/lib/providers/llmProvider.js",
+    "frontend/server/lib/providers/aliyunProvider.js",
+    "frontend/server/lib/utils/config.js",
+    "frontend/server/lib/utils/logger.js",
+    "frontend/server/lib/utils/fileHelper.js"
+  ],
+  "migration": {
+    "from": "Python版本main.py",
+    "to": "Node.js版本完整重构",
+    "compatibility": "100%前端接口兼容",
+    "improvements": [
+      "更好的错误处理",
+      "实时进度推送",
+      "更灵活的配置管理",
+      "更高的性能"
+    ]
+  }
+}
