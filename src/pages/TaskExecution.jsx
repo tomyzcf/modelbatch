@@ -38,7 +38,8 @@ import useAppStore from '../stores/appStore'
 
 const { Title, Text, Paragraph } = Typography
 
-// 模拟任务执行的Hook
+// 模拟任务执行的Hook (已改为使用真实后端调用，此Hook暂时保留备用)
+/*
 function useTaskRunner() {
   const { 
     taskStatus, 
@@ -211,6 +212,7 @@ function useTaskRunner() {
     restartTask
   }
 }
+*/
 
 function TaskExecution() {
   const { 
@@ -220,6 +222,10 @@ function TaskExecution() {
     fileData,
     fieldSelection,
     executeTask,
+    pauseTask,
+    resumeTask,
+    stopTask,
+    restartTask,
     initWebSocket,
     wsConnected,
     downloadResult,
@@ -232,7 +238,7 @@ function TaskExecution() {
   const [executing, setExecuting] = useState(false)
   
   const configSummary = getConfigSummary()
-  const { startTask, pauseTask, stopTask, restartTask } = useTaskRunner()
+  // const { startTask, pauseTask, stopTask, restartTask } = useTaskRunner() // 不再使用mock Hook
   
   // 初始化WebSocket连接
   useEffect(() => {
@@ -306,13 +312,53 @@ function TaskExecution() {
 
     setExecuting(true)
     try {
-      // 使用模拟任务执行器
-      startTask()
+      // 使用真实的后端调用代替模拟任务执行器
+      await executeTask()
       message.success('任务已启动')
     } catch (error) {
       message.error(`任务启动失败: ${error.message}`)
     } finally {
       setExecuting(false)
+    }
+  }
+
+  // 暂停任务
+  const handlePauseTask = async () => {
+    try {
+      await pauseTask()
+      message.success('任务已暂停')
+    } catch (error) {
+      message.error(`任务暂停失败: ${error.message}`)
+    }
+  }
+
+  // 恢复任务
+  const handleResumeTask = async () => {
+    try {
+      await resumeTask()
+      message.success('任务已恢复')
+    } catch (error) {
+      message.error(`任务恢复失败: ${error.message}`)
+    }
+  }
+
+  // 停止任务
+  const handleStopTask = async () => {
+    try {
+      await stopTask()
+      message.success('任务已停止')
+    } catch (error) {
+      message.error(`任务停止失败: ${error.message}`)
+    }
+  }
+
+  // 重新开始任务
+  const handleRestartTask = async () => {
+    try {
+      await restartTask()
+      message.success('任务已重新开始')
+    } catch (error) {
+      message.error(`任务重启失败: ${error.message}`)
     }
   }
 
@@ -853,7 +899,7 @@ function TaskExecution() {
                         <Button 
                           size="large"
                           icon={<PauseCircleOutlined />}
-                          onClick={pauseTask}
+                          onClick={handlePauseTask}
                         >
                           暂停
                         </Button>
@@ -861,7 +907,28 @@ function TaskExecution() {
                           danger
                           size="large"
                           icon={<StopOutlined />}
-                          onClick={stopTask}
+                          onClick={handleStopTask}
+                        >
+                          停止
+                        </Button>
+                      </>
+                    )}
+                    
+                    {pagePhase === 'running' && taskStatus.currentStatus === 'paused' && (
+                      <>
+                        <Button 
+                          type="primary"
+                          size="large"
+                          icon={<PlayCircleOutlined />}
+                          onClick={handleResumeTask}
+                        >
+                          恢复
+                        </Button>
+                        <Button 
+                          danger
+                          size="large"
+                          icon={<StopOutlined />}
+                          onClick={handleStopTask}
                         >
                           停止
                         </Button>
@@ -872,13 +939,7 @@ function TaskExecution() {
                       <Button 
                         size="large"
                         icon={<ReloadOutlined />}
-                        onClick={() => {
-                          if (pagePhase === 'completed') {
-                            restartTask()
-                          } else {
-                            handleStartTask()
-                          }
-                        }}
+                        onClick={handleRestartTask}
                         disabled={executing}
                         loading={executing}
                       >

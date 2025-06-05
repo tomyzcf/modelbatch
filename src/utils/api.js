@@ -131,6 +131,87 @@ class ApiService {
     document.body.removeChild(link)
   }
 
+  // 任务控制API
+  async pauseTask(taskId) {
+    try {
+      const response = await fetch(`${this.baseURL}/api/task/${taskId}/pause`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        return { success: true, ...result }
+      } else {
+        throw new Error('任务暂停失败')
+      }
+    } catch (error) {
+      return { success: false, error: error.message }
+    }
+  }
+
+  async resumeTask(taskId) {
+    try {
+      const response = await fetch(`${this.baseURL}/api/task/${taskId}/resume`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        return { success: true, ...result }
+      } else {
+        throw new Error('任务恢复失败')
+      }
+    } catch (error) {
+      return { success: false, error: error.message }
+    }
+  }
+
+  async stopTask(taskId) {
+    try {
+      const response = await fetch(`${this.baseURL}/api/task/${taskId}/stop`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        return { success: true, ...result }
+      } else {
+        throw new Error('任务停止失败')
+      }
+    } catch (error) {
+      return { success: false, error: error.message }
+    }
+  }
+
+  async getTaskStatus(taskId) {
+    try {
+      const response = await fetch(`${this.baseURL}/api/task/${taskId}/status`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        return { success: true, ...result }
+      } else {
+        throw new Error('获取任务状态失败')
+      }
+    } catch (error) {
+      return { success: false, error: error.message }
+    }
+  }
+
   // 测试API连接
   async testConnection(apiConfig) {
     try {

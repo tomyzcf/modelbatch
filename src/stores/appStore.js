@@ -65,6 +65,9 @@ const useAppStore = create((set, get) => ({
     resultFilePath: null
   },
 
+  // 当前任务ID
+  currentTaskId: null,
+
   // WebSocket连接状态
   wsConnected: false,
 
@@ -262,8 +265,9 @@ const useAppStore = create((set, get) => ({
       const taskResult = await apiService.executeTask(taskParams)
 
       if (taskResult.success) {
-        // 更新任务状态
+        // 保存任务ID并更新任务状态
         set((state) => ({
+          currentTaskId: taskResult.taskId,
           taskStatus: {
             ...state.taskStatus,
             isRunning: true,
@@ -303,6 +307,128 @@ const useAppStore = create((set, get) => ({
         type: 'error'
       })
 
+      throw error
+    }
+  },
+
+  // 暂停任务
+  pauseTask: async () => {
+    const state = get()
+    if (!state.currentTaskId) {
+      throw new Error('没有正在运行的任务')
+    }
+
+    try {
+      const result = await apiService.pauseTask(state.currentTaskId)
+      if (result.success) {
+        set((state) => ({
+          taskStatus: {
+            ...state.taskStatus,
+            isRunning: false,
+            currentStatus: 'paused'
+          }
+        }))
+
+        get().addTaskLog({
+          message: '任务已暂停',
+          type: 'warning'
+        })
+      }
+      return result
+    } catch (error) {
+      get().addErrorLog({
+        message: `任务暂停失败: ${error.message}`,
+        type: 'error'
+      })
+      throw error
+    }
+  },
+
+  // 恢复任务
+  resumeTask: async () => {
+    const state = get()
+    if (!state.currentTaskId) {
+      throw new Error('没有可恢复的任务')
+    }
+
+    try {
+      const result = await apiService.resumeTask(state.currentTaskId)
+      if (result.success) {
+        set((state) => ({
+          taskStatus: {
+            ...state.taskStatus,
+            isRunning: true,
+            currentStatus: 'running'
+          }
+        }))
+
+        get().addTaskLog({
+          message: '任务已恢复',
+          type: 'info'
+        })
+      }
+      return result
+    } catch (error) {
+      get().addErrorLog({
+        message: `任务恢复失败: ${error.message}`,
+        type: 'error'
+      })
+      throw error
+    }
+  },
+
+  // 停止任务
+  stopTask: async () => {
+    const state = get()
+    if (!state.currentTaskId) {
+      throw new Error('没有正在运行的任务')
+    }
+
+    try {
+      const result = await apiService.stopTask(state.currentTaskId)
+      if (result.success) {
+        set((state) => ({
+          taskStatus: {
+            ...state.taskStatus,
+            isRunning: false,
+            currentStatus: 'stopped',
+            endTime: new Date()
+          }
+        }))
+
+        get().addTaskLog({
+          message: '任务已停止',
+          type: 'error'
+        })
+      }
+      return result
+    } catch (error) {
+      get().addErrorLog({
+        message: `任务停止失败: ${error.message}`,
+        type: 'error'
+      })
+      throw error
+    }
+  },
+
+  // 重新开始任务
+  restartTask: async () => {
+    const state = get()
+    try {
+      // 如果有正在运行的任务，先停止它
+      if (state.currentTaskId && state.taskStatus.isRunning) {
+        await get().stopTask()
+        // 等待一秒后重新开始
+        await new Promise(resolve => setTimeout(resolve, 1000))
+      }
+      
+      // 重新执行任务
+      return await get().executeTask()
+    } catch (error) {
+      get().addErrorLog({
+        message: `任务重启失败: ${error.message}`,
+        type: 'error'
+      })
       throw error
     }
   },
@@ -393,6 +519,7 @@ const useAppStore = create((set, get) => ({
   reset: () => set({
     currentStep: 1,
     completedSteps: [],
+    currentTaskId: null,
     apiConfig: {
       api_type: 'llm',
       provider: 'deepseek',
