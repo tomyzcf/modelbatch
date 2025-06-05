@@ -10,7 +10,7 @@ import YAML from 'yaml'
 import spawn from 'cross-spawn'
 
 // 导入新的批处理器
-import { BatchProcessor } from './lib/core/index.js'
+import BatchProcessor from './lib/core/batchProcessor.js'
 import Logger from './lib/utils/logger.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -166,8 +166,8 @@ app.post('/api/generate-config', async (req, res) => {
       yamlConfig.api_providers.frontend_generated.app_id = apiConfig.app_id
     }
 
-    const configPath = path.join(configDir, 'config.yaml')
-    await fs.writeFile(configPath, YAML.stringify(yamlConfig))
+    const configPath = path.join(configDir, 'config.json')
+    await fs.writeFile(configPath, JSON.stringify(yamlConfig, null, 2))
 
     // 生成提示词文件
     const promptPath = path.join(configDir, 'prompt.json')
@@ -208,37 +208,40 @@ app.post('/api/execute-task', async (req, res) => {
 
     // 构建文件路径
     const inputFilePath = path.resolve(inputFile)
-    const configFilePath = configPath ? path.resolve(configPath) : null
+    
+    // 读取API配置和提示词配置
+    const promptConfig = JSON.parse(await fs.readFile(promptPath, 'utf8'))
+    const apiConfig = configPath ? 
+      JSON.parse(await fs.readFile(configPath, 'utf8')).api_providers.frontend_generated :
+      null
+
+    if (!apiConfig) {
+      return res.status(400).json({ 
+        error: '无法从配置文件中读取API配置' 
+      })
+    }
+
+    // 解析字段索引（转换为基于0的索引）
+    const selectedFields = fields ? fields.map(f => parseInt(f) - 1) : [0]
     
     // 生成任务ID
     const taskId = `task_${Date.now()}`
     
-    // 设置输出目录（与原Python版本保持一致）
-    const outputDir = path.join(__dirname, '../../outputData')
-    
-    // 构建任务参数
-    const taskParams = {
-      filePath: inputFilePath,
-      configPath: configFilePath,
-      promptPath: promptPath,
-      outputDir: outputDir,
-      selectedFields: fields ? fields.map(f => parseInt(f)) : undefined,
-      startRow: startPos ? parseInt(startPos) : 0,
-      endRow: endPos ? parseInt(endPos) : undefined,
-      batchSize: 5, // 默认批次大小
-      taskName: taskId
-    }
-
-    console.log('开始执行Node.js批处理任务:', taskParams)
+    console.log('开始执行批处理任务:', {
+      inputFile: inputFilePath,
+      selectedFields,
+      apiConfig: { ...apiConfig, api_key: apiConfig.api_key ? 'sk-***' : 'missing' },
+      promptConfig
+    })
 
     // 创建批处理器实例
-    const batchProcessor = new BatchProcessor(clients)
+    const batchProcessor = new BatchProcessor()
     
     // 存储活动任务，以便后续管理
     activeTasks.set(taskId, batchProcessor)
 
     // 异步执行任务
-    executeTaskAsync(taskId, batchProcessor, taskParams)
+    executeTaskAsync(taskId, batchProcessor, inputFilePath, selectedFields, apiConfig, promptConfig)
       .catch(error => {
         console.error(`任务 ${taskId} 执行失败:`, error)
         broadcast({
@@ -267,7 +270,7 @@ app.post('/api/execute-task', async (req, res) => {
 })
 
 // 异步执行任务的函数
-async function executeTaskAsync(taskId, batchProcessor, taskParams) {
+async function executeTaskAsync(taskId, batchProcessor, dataFilePath, selectedFields, apiConfig, promptConfig) {
   try {
     // 广播任务开始
     broadcast({
@@ -277,23 +280,20 @@ async function executeTaskAsync(taskId, batchProcessor, taskParams) {
     })
 
     // 执行批处理任务
-    const result = await batchProcessor.executeTask(taskParams)
-    
-    // 查找生成的结果文件
-    const outputFiles = await findOutputFiles(taskParams.outputDir)
+    const result = await batchProcessor.startProcessing(dataFilePath, selectedFields, apiConfig, promptConfig)
     
     // 广播任务完成
     broadcast({
       type: 'completed',
       taskId: taskId,
       message: '任务执行完成',
-      resultFile: outputFiles.mainResult,
       result: {
         totalRows: result.totalRows,
         processedRows: result.processedRows,
         successCount: result.successCount,
         errorCount: result.errorCount,
-        errorRate: result.errorRate.toFixed(2) + '%'
+        taskId: result.taskId,
+        outputFiles: result.outputFiles
       }
     })
 
@@ -302,38 +302,6 @@ async function executeTaskAsync(taskId, batchProcessor, taskParams) {
   } catch (error) {
     Logger.error(`任务 ${taskId} 执行失败: ${error.message}`)
     throw error
-  }
-}
-
-// 查找输出文件
-async function findOutputFiles(outputDir) {
-  try {
-    const files = await fs.readdir(outputDir)
-    
-    // 查找最新的输出文件
-    const resultFiles = files.filter(f => 
-      (f.endsWith('.csv') || f.endsWith('.xlsx')) && 
-      f.includes('processed_data')
-    )
-    
-    if (resultFiles.length > 0) {
-      // 按修改时间排序，返回最新的
-      const fileStats = await Promise.all(
-        resultFiles.map(async f => ({
-          name: f,
-          stat: await fs.stat(path.join(outputDir, f))
-        }))
-      )
-      
-      fileStats.sort((a, b) => b.stat.mtime - a.stat.mtime)
-      return { mainResult: fileStats[0].name }
-    }
-    
-    return { mainResult: null }
-    
-  } catch (error) {
-    console.error('查找输出文件失败:', error)
-    return { mainResult: null }
   }
 }
 
@@ -364,20 +332,8 @@ app.post('/api/task/:taskId/pause', (req, res) => {
   const task = activeTasks.get(taskId)
   
   if (task) {
-    task.pauseTask()
+    task.pauseProcessing()
     res.json({ success: true, message: '任务已暂停' })
-  } else {
-    res.status(404).json({ error: '任务不存在' })
-  }
-})
-
-app.post('/api/task/:taskId/resume', (req, res) => {
-  const taskId = req.params.taskId
-  const task = activeTasks.get(taskId)
-  
-  if (task) {
-    task.resumeTask()
-    res.json({ success: true, message: '任务已恢复' })
   } else {
     res.status(404).json({ error: '任务不存在' })
   }
@@ -388,10 +344,43 @@ app.post('/api/task/:taskId/stop', (req, res) => {
   const task = activeTasks.get(taskId)
   
   if (task) {
-    task.stopTask()
-    res.json({ success: true, message: '任务停止信号已发送' })
+    task.stopProcessing()
+    res.json({ success: true, message: '任务已停止' })
   } else {
     res.status(404).json({ error: '任务不存在' })
+  }
+})
+
+// 获取任务列表
+app.get('/api/tasks', (req, res) => {
+  try {
+    const taskProcessor = new BatchProcessor()
+    const taskList = taskProcessor.getTaskList()
+    
+    res.json({
+      success: true,
+      tasks: taskList
+    })
+  } catch (error) {
+    console.error('获取任务列表失败:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// 清理过期任务
+app.post('/api/tasks/cleanup', (req, res) => {
+  try {
+    const { maxAgeDays = 7 } = req.body
+    const taskProcessor = new BatchProcessor()
+    taskProcessor.cleanupOldTasks(maxAgeDays)
+    
+    res.json({
+      success: true,
+      message: `已清理 ${maxAgeDays} 天前的任务`
+    })
+  } catch (error) {
+    console.error('清理任务失败:', error)
+    res.status(500).json({ error: error.message })
   }
 })
 

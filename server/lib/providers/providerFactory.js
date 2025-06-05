@@ -15,6 +15,7 @@ class ProviderFactory {
     
     switch (apiType) {
       case 'llm':
+      case 'llm_compatible':  // 兼容llm_compatible类型
         return new LLMProvider(apiConfig);
         
       case 'aliyun_agent':
@@ -50,6 +51,7 @@ class ProviderFactory {
     // 根据API类型进行特定验证
     switch (apiConfig.api_type) {
       case 'llm':
+      case 'llm_compatible':  // 兼容llm_compatible类型
         if (!apiConfig.model) {
           result.errors.push('LLM类型需要指定模型 (model)');
         }

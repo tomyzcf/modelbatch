@@ -251,15 +251,21 @@ const useAppStore = create((set, get) => ({
         throw new Error('配置文件生成失败')
       }
 
+      // 将字段索引转换为从1开始（后端期望从1开始的索引）
+      const fieldIndices = state.fieldSelection.selectedFields.map(index => index + 1)
+
       // 准备任务参数
       const taskParams = {
         inputFile: state.fileData.uploadedFile.path,
         configPath: configResult.configPath,
         promptPath: configResult.promptPath,
-        fields: state.fieldSelection.selectedFields,
-        startPos: state.fieldSelection.startRow,
-        endPos: state.fieldSelection.endRow
+        fields: fieldIndices,  // 使用从1开始的字段索引
+        startPos: state.fieldSelection.startRow || 1,
+        endPos: state.fieldSelection.endRow || state.fileData.totalRows
       }
+
+      console.log('字段选择状态:', state.fieldSelection)
+      console.log('执行任务参数:', taskParams)  // 调试日志
 
       // 启动任务
       const taskResult = await apiService.executeTask(taskParams)
@@ -274,7 +280,7 @@ const useAppStore = create((set, get) => ({
             isCompleted: false,
             currentStatus: 'running',
             startTime: new Date(),
-            totalCount: state.fieldSelection.endRow - state.fieldSelection.startRow + 1,
+            totalCount: (state.fieldSelection.endRow || state.fileData.totalRows) - (state.fieldSelection.startRow || 1) + 1,
             processedCount: 0,
             progress: 0,
             logs: [],

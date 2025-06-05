@@ -3,9 +3,18 @@ import Logger from '../utils/logger.js';
 class LLMProvider {
   constructor(config) {
     this.apiKey = config.api_key;
-    this.baseUrl = (config.api_url || 'https://api.deepseek.com/v1/chat/completions').replace(/\/$/, ''); // 移除末尾斜杠
+    
+    // 支持多种URL字段名
+    const apiUrl = config.api_url || config.base_url || 'https://api.deepseek.com';
+    this.baseUrl = apiUrl.replace(/\/$/, '').replace(/\/v1\/chat\/completions$/, '');
+    
     this.model = config.model || 'deepseek-chat';
     this.modelParams = config.model_params || {};
+    
+    // 调试日志：检查API密钥
+    Logger.info(`API密钥长度: ${this.apiKey ? this.apiKey.length : 'undefined'}`);
+    Logger.info(`API密钥前缀: ${this.apiKey ? this.apiKey.substring(0, 10) + '...' : 'undefined'}`);
+    Logger.info(`API URL: ${apiUrl}`);
     
     // 重试配置
     this.maxRetries = config.max_retries || 5;
@@ -68,6 +77,9 @@ class LLMProvider {
 
       const url = `${this.baseUrl}${this.endpointPath}`;
       Logger.info(`发送API请求: ${url}`);
+      
+      // 调试日志：检查发送的API密钥
+      Logger.info(`请求使用的API密钥: ${this.apiKey.substring(0, 10)}...${this.apiKey.substring(this.apiKey.length - 4)}`);
 
       // 发送HTTP请求
       const response = await fetch(url, {

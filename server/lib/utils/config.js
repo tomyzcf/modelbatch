@@ -43,6 +43,19 @@ class ConfigManager {
    * @returns {object} API配置对象
    */
   getApiConfig() {
+    // 支持新格式：从api_providers中获取默认provider的配置
+    if (this.config.api_providers && this.config.default_provider) {
+      const defaultProviderConfig = this.config.api_providers[this.config.default_provider];
+      if (defaultProviderConfig) {
+        // 字段名映射：base_url -> api_url
+        return {
+          ...defaultProviderConfig,
+          api_url: defaultProviderConfig.base_url || defaultProviderConfig.api_url
+        };
+      }
+    }
+    
+    // 兼容旧格式
     return this.config.apiConfig || {};
   }
 
@@ -71,7 +84,7 @@ class ConfigManager {
     if (!apiConfig.api_key) {
       result.errors.push('缺少API密钥');
     }
-    if (!apiConfig.api_url) {
+    if (!apiConfig.api_url && !apiConfig.base_url) {
       result.errors.push('缺少API地址');
     }
     if (!apiConfig.api_type) {

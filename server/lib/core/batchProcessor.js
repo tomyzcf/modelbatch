@@ -1,506 +1,374 @@
+import fs from 'fs';
 import path from 'path';
 import Logger from '../utils/logger.js';
-import FileHelper from '../utils/fileHelper.js';
+import BatchReader from './batchReader.js';
+import TaskManager from './taskManager.js';
+import ProgressTrackerV2 from './progressTrackerV2.js';
 import ConfigManager from '../utils/config.js';
-import { LLMProvider, AliyunProvider } from '../providers/index.js';
-import { FileReader, BatchReader } from './index.js';
-import ProgressTracker from './progressTracker.js';
-import fs from 'fs/promises';
-import YAML from 'yaml';
+import ProviderFactory from '../providers/providerFactory.js';
 
 class BatchProcessor {
-  constructor(wsClients = null) {
-    this.wsClients = wsClients; // WebSocket客户端用于实时推送
-    this.isRunning = false;
-    this.isPaused = false;
-    this.shouldStop = false;
-    
-    // 配置对象
-    this.config = null;
+  constructor() {
     this.provider = null;
     this.progressTracker = null;
-    this.batchReader = null;
-    
-    // 处理参数
-    this.maxRetries = 3;
-    this.retryDelay = 1000; // 毫秒
-    this.batchSize = 5;
-    this.concurrentLimit = 1; // 暂时不支持并发，避免API限制
+    this.taskManager = new TaskManager();
+    this.isProcessing = false;
+    this.isPaused = false;
+    this.currentTask = null;
   }
 
   /**
-   * 执行批处理任务
-   * @param {Object} params 任务参数
+   * 开始批量处理任务
+   * @param {string} dataFilePath - 数据文件路径
+   * @param {Array<number>} selectedFields - 选中的字段索引
+   * @param {object} apiConfig - API配置
+   * @param {object} promptConfig - 提示词配置
+   * @returns {Promise<object>} 处理结果
    */
-  async executeTask(params) {
+  async startProcessing(dataFilePath, selectedFields, apiConfig, promptConfig) {
+    if (this.isProcessing) {
+      throw new Error('已有任务在处理中，请等待完成或先暂停');
+    }
+
     try {
-      Logger.info('开始执行批处理任务');
-      this.isRunning = true;
-      this.shouldStop = false;
+      this.isProcessing = true;
+      this.isPaused = false;
+
+      Logger.info('开始批量处理任务');
+      Logger.info(`数据文件: ${dataFilePath}`);
+      Logger.info(`选中字段: ${selectedFields}`);
+
+      // 1. 验证数据文件
+      if (!fs.existsSync(dataFilePath)) {
+        throw new Error(`数据文件不存在: ${dataFilePath}`);
+      }
+
+      // 2. 创建配置管理器并验证
+      const configData = { apiConfig, promptConfig };
+      const configManager = ConfigManager.fromFrontend(apiConfig, promptConfig);
+      const validation = configManager.validate();
       
-      // 1. 初始化配置和组件
-      await this._initializeTask(params);
+      if (!validation.isValid) {
+        throw new Error(`配置验证失败: ${validation.errors.join(', ')}`);
+      }
+
+      // 3. 查找可恢复的任务或创建新任务
+      let taskInfo = this.taskManager.findResumableTask(dataFilePath, configData);
+      const isResuming = !!taskInfo;
       
-      // 2. 检查断点续传
+      if (!taskInfo) {
+        taskInfo = this.taskManager.createTask(dataFilePath, configData, selectedFields);
+        Logger.info(`创建新任务: ${taskInfo.id}`);
+      } else {
+        Logger.info(`恢复任务: ${taskInfo.id}`);
+      }
+
+      this.currentTask = taskInfo;
+
+      // 4. 初始化进度跟踪器
+      this.progressTracker = new ProgressTrackerV2(taskInfo);
+      
+      // 5. 加载进度（如果是恢复任务）
       const hasProgress = this.progressTracker.loadProgress();
+      let startPosition = 0;
+      
       if (hasProgress) {
-        Logger.info('检测到进度文件，将从断点续传');
+        startPosition = this.progressTracker.progress.processedRows;
+        Logger.info(`从第 ${startPosition + 1} 行开始恢复处理`);
+      }
+
+      // 6. 初始化API提供商
+      this.provider = ProviderFactory.createProvider(configManager.getApiConfig());
+      
+      // 7. 读取CSV数据
+      const batchReader = new BatchReader(dataFilePath);
+      const csvData = await this._readCSVData(batchReader);
+      if (!csvData || csvData.length === 0) {
+        throw new Error('CSV文件为空或读取失败');
+      }
+
+      // 8. 验证字段索引
+      const maxFieldIndex = Math.max(...selectedFields);
+      if (maxFieldIndex >= csvData[0].length) {
+        throw new Error(`字段索引超出范围: ${maxFieldIndex}, 最大可用索引: ${csvData[0].length - 1}`);
+      }
+
+      // 9. 开始处理
+      if (!hasProgress) {
+        this.progressTracker.setTotalRows(csvData.length);
+        this.taskManager.updateTaskStatus(taskInfo.id, 'processing');
+      }
+
+      const result = await this._processData(csvData, selectedFields, configManager, startPosition);
+
+      // 10. 标记任务完成
+      this.progressTracker.markCompleted();
+      this.taskManager.updateTaskStatus(taskInfo.id, 'completed');
+
+      Logger.success('批量处理任务完成');
+      return result;
+
+    } catch (error) {
+      Logger.error(`批量处理失败: ${error.message}`);
+      
+      if (this.progressTracker) {
+        this.progressTracker.markError(error.message);
       }
       
-      // 3. 获取文件信息和设置总行数
-      const fileInfo = await this._getFileInfo(params.filePath);
-      let totalRows = this._calculateTotalRows(fileInfo, params);
-      this.progressTracker.setTotalRows(totalRows);
+      if (this.currentTask) {
+        this.taskManager.updateTaskStatus(this.currentTask.id, 'error');
+      }
       
-      // 4. 创建批次读取器
-      this._createBatchReader(params);
-      
-      // 5. 执行批处理
-      await this._processBatches();
-      
-      // 6. 完成处理
-      this.progressTracker.markCompleted();
-      this._broadcastProgress();
-      
-      Logger.success('批处理任务执行完成');
-      return this._getTaskSummary();
-      
-    } catch (error) {
-      Logger.error(`批处理任务执行失败: ${error.message}`);
-      this.progressTracker?.markError(error.message);
-      this._broadcastProgress();
       throw error;
     } finally {
-      this.isRunning = false;
+      this.isProcessing = false;
+      this.currentTask = null;
     }
   }
 
   /**
-   * 暂停任务
+   * 暂停当前处理
    */
-  pauseTask() {
-    if (this.isRunning) {
-      this.isPaused = true;
-      this.progressTracker?.markPaused();
-      Logger.info('任务已暂停');
-      this._broadcastProgress();
+  pauseProcessing() {
+    if (!this.isProcessing) {
+      Logger.warning('当前没有正在处理的任务');
+      return;
+    }
+
+    this.isPaused = true;
+    Logger.info('正在暂停处理...');
+    
+    if (this.progressTracker) {
+      this.progressTracker.markPaused();
+    }
+    
+    if (this.currentTask) {
+      this.taskManager.updateTaskStatus(this.currentTask.id, 'paused');
     }
   }
 
   /**
-   * 恢复任务
+   * 停止当前处理
    */
-  resumeTask() {
-    if (this.isPaused) {
-      this.isPaused = false;
-      Logger.info('任务已恢复');
-    }
+  stopProcessing() {
+    this.isPaused = true;
+    Logger.info('正在停止处理...');
   }
 
   /**
-   * 停止任务
-   */
-  stopTask() {
-    this.shouldStop = true;
-    this.isPaused = false;
-    Logger.info('任务停止信号已发送');
-  }
-
-  /**
-   * 获取当前进度
+   * 获取当前处理进度
+   * @returns {object|null} 进度信息
    */
   getProgress() {
-    return this.progressTracker?.getProgress() || null;
+    if (!this.progressTracker) {
+      return null;
+    }
+    
+    return {
+      ...this.progressTracker.getProgress(),
+      isProcessing: this.isProcessing,
+      isPaused: this.isPaused,
+      taskId: this.currentTask?.id || null
+    };
   }
 
   /**
-   * 初始化任务配置和组件
+   * 获取任务列表
+   * @returns {Array} 任务列表
    */
-  async _initializeTask(params) {
-    // 验证参数
-    this._validateParams(params);
-    
-    // 创建配置管理器 - 兼容两种参数格式
-    if (params.configPath) {
-      // 使用传统的配置文件路径
-      this.config = ConfigManager.fromFile(params.configPath);
-    } else if (params.promptPath) {
-      // 使用前端API格式，从promptPath加载配置
-      this.config = await this._createConfigFromPromptPath(params.promptPath);
-    } else {
-      throw new Error('必须提供 configPath 或 promptPath 参数');
-    }
-    
-    // 创建API提供商
-    this.provider = this._createProvider();
-    
-    // 创建进度跟踪器
-    const outputDir = params.outputDir || path.join(path.dirname(params.filePath), 'output');
-    const taskName = params.taskName || `task_${Date.now()}`;
-    this.progressTracker = new ProgressTracker(outputDir, taskName);
-    
-    Logger.info('任务初始化完成');
+  getTaskList() {
+    return this.taskManager.listTasks();
   }
 
   /**
-   * 验证输入参数
+   * 清理过期任务
+   * @param {number} maxAgeDays - 最大保留天数
    */
-  _validateParams(params) {
-    if (!params.filePath) {
-      throw new Error('缺少文件路径参数');
-    }
-    
-    if (!params.configPath && !params.promptPath) {
-      throw new Error('缺少配置文件路径参数或提示词文件路径参数');
-    }
-    
-    if (!FileHelper.fileExists(params.filePath)) {
-      throw new Error(`输入文件不存在: ${params.filePath}`);
-    }
-    
-    // 验证配置文件或提示词文件存在
-    const configFile = params.configPath || params.promptPath;
-    if (!FileHelper.fileExists(configFile)) {
-      throw new Error(`配置文件不存在: ${configFile}`);
-    }
+  cleanupOldTasks(maxAgeDays = 7) {
+    this.taskManager.cleanupOldTasks(maxAgeDays);
   }
 
+  // 私有方法
+
   /**
-   * 从提示词文件创建配置对象
-   * @param {string} promptPath 提示词文件路径
+   * 读取CSV数据并转换为数组格式
+   * @param {BatchReader} batchReader - BatchReader实例
+   * @returns {Promise<Array<Array<string>>>} CSV数据数组
    */
-  async _createConfigFromPromptPath(promptPath) {
+  async _readCSVData(batchReader) {
     try {
-      // 读取提示词文件内容
-      const promptContent = await fs.readFile(promptPath, 'utf8');
-      let promptData;
+      // 使用 BatchReader 的内部方法读取CSV数据
+      const csvData = await batchReader._readCSVData();
       
-      try {
-        // 尝试解析为JSON
-        promptData = JSON.parse(promptContent);
-      } catch (jsonError) {
-        // 如果不是JSON，尝试解析为YAML
-        try {
-          promptData = YAML.parse(promptContent);
-        } catch (yamlError) {
-          throw new Error(`提示词文件格式不支持，必须是JSON或YAML格式: ${promptPath}`);
-        }
+      if (!csvData || !csvData.headers || !csvData.rows) {
+        throw new Error('CSV数据格式错误');
       }
+
+      const results = [];
+      // 添加表头作为第一行
+      results.push(csvData.headers);
       
-      // 转换为标准配置格式
-      const config = this._convertPromptDataToConfig(promptData);
+      // 将每行数据转换为数组格式
+      csvData.rows.forEach(row => {
+        const rowArray = csvData.headers.map(header => row[header] || '');
+        results.push(rowArray);
+      });
       
-      // 创建ConfigManager实例
-      return new ConfigManager(config);
+      Logger.info(`成功读取CSV文件，共 ${results.length - 1} 行数据`);
+      return results;
       
     } catch (error) {
-      throw new Error(`读取提示词文件失败: ${error.message}`);
+      Logger.error(`CSV文件读取失败: ${error.message}`);
+      throw new Error(`CSV文件读取失败: ${error.message}`);
     }
   }
 
   /**
-   * 将提示词数据转换为标准配置格式
-   * @param {Object} promptData 提示词数据
+   * 处理CSV数据
+   * @param {Array<Array<string>>} csvData - CSV数据
+   * @param {Array<number>} selectedFields - 选中的字段索引
+   * @param {ConfigManager} configManager - 配置管理器
+   * @param {number} startPosition - 开始位置
+   * @returns {Promise<object>} 处理结果
    */
-  _convertPromptDataToConfig(promptData) {
-    // 如果已经是标准格式，直接返回
-    if (promptData.apiConfig && promptData.promptConfig) {
-      return promptData;
-    }
+  async _processData(csvData, selectedFields, configManager, startPosition = 0) {
+    const prompt = configManager.buildPrompt(''); // 获取基础提示词结构
+    const processConfig = configManager.getProcessConfig();
     
-    // 如果是简单的提示词格式，构建默认配置
-    const config = {
-      apiConfig: {
-        api_type: promptData.api_type || 'llm',
-        api_url: promptData.api_url || 'https://api.deepseek.com/v1/chat/completions',
-        api_key: promptData.api_key || 'default_key',
-        model: promptData.model || 'deepseek-chat'
-      },
-      promptConfig: {
-        system: promptData.system || '你是一个专业的助手。',
-        task: promptData.task || promptData.prompt || '{input_text}',
-        output: promptData.output || '请提供相关回复',
-        variables: promptData.variables || '',
-        examples: promptData.examples || ''
-      }
-    };
-    
-    // 处理阿里云Agent特殊配置
-    if (promptData.api_type === 'aliyun_agent') {
-      config.apiConfig.app_id = promptData.app_id || promptData.application_id || '';
-    }
-    
-    return config;
-  }
+    let successCount = 0;
+    let errorCount = 0;
+    let position = startPosition;
 
-  /**
-   * 创建API提供商
-   */
-  _createProvider() {
-    const apiConfig = this.config.getApiConfig();
-    
-    switch (apiConfig.api_type) {
-      case 'aliyun_agent':
-        return new AliyunProvider(apiConfig);
-      case 'llm':
-      default:
-        return new LLMProvider(apiConfig);
-    }
-  }
+    Logger.info(`开始处理数据，总计 ${csvData.length} 行，从第 ${position + 1} 行开始`);
 
-  /**
-   * 获取文件信息
-   */
-  async _getFileInfo(filePath) {
-    const fileReader = new FileReader();
-    return await fileReader.getFileInfo(filePath);
-  }
-
-  /**
-   * 计算总行数（考虑起始和结束位置）
-   */
-  _calculateTotalRows(fileInfo, params) {
-    let totalRows = fileInfo.totalRows;
-    
-    if (params.startRow !== undefined && params.endRow !== undefined) {
-      totalRows = Math.max(0, params.endRow - params.startRow);
-    } else if (params.startRow !== undefined) {
-      totalRows = Math.max(0, totalRows - params.startRow);
-    } else if (params.endRow !== undefined) {
-      totalRows = Math.min(totalRows, params.endRow);
-    }
-    
-    return totalRows;
-  }
-
-  /**
-   * 创建批次读取器
-   */
-  _createBatchReader(params) {
-    const options = {
-      batchSize: params.batchSize || this.batchSize,
-      fields: params.selectedFields, // 选中的字段索引数组
-      startPos: params.startRow || 0,
-      endPos: params.endRow,
-      encoding: params.encoding || 'utf8'
-    };
-    
-    this.batchReader = new BatchReader(params.filePath, options);
-  }
-
-  /**
-   * 处理所有批次
-   */
-  async _processBatches() {
-    const progress = this.progressTracker.getProgress();
-    let processedCount = progress.processedRows || 0;
-    
-    // 如果是断点续传，跳过已处理的批次
-    let skipBatches = Math.floor(processedCount / this.batchSize);
-    let skippedCount = 0;
-    
-    for await (const batch of this.batchReader.readBatches()) {
-      // 检查是否需要停止
-      if (this.shouldStop) {
-        Logger.info('收到停止信号，任务中断');
-        break;
-      }
+    // 分批处理
+    while (position < csvData.length && !this.isPaused) {
+      const batchEnd = Math.min(position + processConfig.batchSize, csvData.length);
+      const batch = csvData.slice(position, batchEnd);
       
-      // 检查是否暂停
-      while (this.isPaused && !this.shouldStop) {
-        await this._sleep(1000);
-      }
-      
-      // 跳过已处理的批次（断点续传）
-      if (skipBatches > 0) {
-        skipBatches--;
-        skippedCount += batch.length;
-        continue;
-      }
-      
+      Logger.info(`处理批次: ${position + 1}-${batchEnd} / ${csvData.length}`);
+
       try {
-        // 处理当前批次
-        const results = await this._processBatch(batch, processedCount);
+        const batchResults = await this._processBatch(batch, selectedFields, prompt, position);
         
-        // 记录成功的结果
-        if (results.length > 0) {
-          this.progressTracker.recordSuccess(results);
+        // 记录成功结果
+        const successResults = batchResults.filter(r => r.success);
+        const errorResults = batchResults.filter(r => !r.success);
+        
+        if (successResults.length > 0) {
+          this.progressTracker.recordSuccess(successResults.map(r => r.data));
+          successCount += successResults.length;
         }
         
-        // 更新进度
-        processedCount += batch.length;
-        this.progressTracker.updatePosition(processedCount);
-        
-        // 广播进度更新
-        this._broadcastProgress();
-        
-        // 适当延迟，避免API过载
-        await this._sleep(200);
-        
+        // 记录错误
+        errorResults.forEach(r => {
+          this.progressTracker.recordError(r.position, r.originalData, r.error);
+          errorCount++;
+        });
+
+        position = batchEnd;
+        this.progressTracker.updatePosition(position);
+
+        // 批次间隔延迟
+        if (position < csvData.length && processConfig.retryInterval > 0) {
+          await new Promise(resolve => setTimeout(resolve, processConfig.retryInterval * 1000));
+        }
+
       } catch (error) {
         Logger.error(`批次处理失败: ${error.message}`);
         
-        // 将整个批次记录为错误
-        batch.forEach((item, index) => {
-          this.progressTracker.recordError(
-            processedCount + index,
-            item.content,
-            error.message,
-            0
-          );
-        });
+        // 记录整个批次的错误
+        for (let i = position; i < batchEnd; i++) {
+          this.progressTracker.recordError(i, csvData[i].join(','), error.message);
+          errorCount++;
+        }
         
-        processedCount += batch.length;
+        position = batchEnd;
+        this.progressTracker.updatePosition(position);
       }
     }
-    
-    if (skippedCount > 0) {
-      Logger.info(`跳过已处理的 ${skippedCount} 条记录`);
-    }
+
+    const finalProgress = this.progressTracker.getProgress();
+    const outputFiles = this.progressTracker.getOutputFiles();
+
+    return {
+      totalRows: csvData.length,
+      processedRows: position,
+      successCount: finalProgress.successCount,
+      errorCount: finalProgress.errorCount,
+      skippedCount: finalProgress.skippedCount,
+      isPaused: this.isPaused,
+      taskId: this.currentTask?.id,
+      outputFiles: outputFiles
+    };
   }
 
   /**
    * 处理单个批次
+   * @param {Array<Array<string>>} batch - 批次数据
+   * @param {Array<number>} selectedFields - 选中的字段索引
+   * @param {object} promptTemplate - 提示词模板
+   * @param {number} basePosition - 基础位置
+   * @returns {Promise<Array<object>>} 批次处理结果
    */
-  async _processBatch(batch, startIndex) {
-    const results = [];
-    const promptConfig = this.config.getPromptConfig();
-    
-    for (let i = 0; i < batch.length; i++) {
-      const item = batch[i];
-      const currentIndex = startIndex + i;
+  async _processBatch(batch, selectedFields, promptTemplate, basePosition) {
+    const promises = batch.map(async (row, index) => {
+      const position = basePosition + index;
       
       try {
-        // 检查停止信号
-        if (this.shouldStop) break;
+        // 提取选中字段的内容
+        const selectedContent = selectedFields.map(fieldIndex => row[fieldIndex] || '').join(' ');
         
-        // 构建提示词
-        const prompt = this.config.buildPrompt(item.content);
-        
-        // 调用API（带重试机制）
-        const response = await this._callAPIWithRetry(prompt, currentIndex);
-        
-        if (response) {
-          results.push({
-            row_index: currentIndex,
-            input_content: item.content,
-            output_result: response.content || response.result || '',
-            processing_time: response.processingTime || 0,
-            position: currentIndex,
-            rawResponse: response.raw
-          });
-        }
-        
-      } catch (error) {
-        // 记录单个条目的错误
-        this.progressTracker.recordError(
-          currentIndex,
-          item.content,
-          error.message,
-          0
-        );
-      }
-    }
-    
-    return results;
-  }
-
-  /**
-   * 带重试机制的API调用
-   */
-  async _callAPIWithRetry(prompt, rowIndex) {
-    let lastError = null;
-    
-    for (let attempt = 0; attempt < this.maxRetries; attempt++) {
-      try {
-        const startTime = Date.now();
-        const response = await this.provider.makeRequest(prompt);
-        const processingTime = Date.now() - startTime;
-        
-        if (response && response.content) {
+        if (!selectedContent.trim()) {
           return {
-            content: response.content,
-            processingTime,
-            raw: response
+            success: false,
+            position: position,
+            originalData: row.join(','),
+            error: '选中字段内容为空'
           };
-        } else {
-          throw new Error('API返回内容为空');
         }
+
+        // 构建完整提示词
+        const fullPrompt = promptTemplate.user.replace('{input_text}', selectedContent);
         
+        // 调用API
+        const apiResult = await this.provider.makeRequest(promptTemplate.system, fullPrompt);
+        
+        if (!apiResult) {
+          return {
+            success: false,
+            position: position,
+            originalData: row.join(','),
+            error: 'API调用失败或返回空结果'
+          };
+        }
+
+        // 构建输出数据
+        const outputData = {
+          position: position + 1,
+          input: selectedContent,
+          output: typeof apiResult === 'string' ? apiResult : JSON.stringify(apiResult),
+          ...apiResult
+        };
+
+        return {
+          success: true,
+          position: position,
+          data: outputData,
+          rawResponse: apiResult
+        };
+
       } catch (error) {
-        lastError = error;
-        Logger.warning(`API调用失败 [行${rowIndex}] 尝试 ${attempt + 1}/${this.maxRetries}: ${error.message}`);
-        
-        if (attempt < this.maxRetries - 1) {
-          // 等待后重试
-          await this._sleep(this.retryDelay * (attempt + 1));
-        }
+        return {
+          success: false,
+          position: position,
+          originalData: row.join(','),
+          error: error.message
+        };
       }
-    }
-    
-    // 所有重试都失败
-    throw new Error(`API调用最终失败: ${lastError.message}`);
-  }
+    });
 
-  /**
-   * 广播进度更新到WebSocket客户端
-   */
-  _broadcastProgress() {
-    if (this.wsClients && this.progressTracker) {
-      const progress = this.progressTracker.getProgress();
-      const message = JSON.stringify({
-        type: 'progress_update',
-        data: progress
-      });
-      
-      this.wsClients.forEach(client => {
-        if (client.readyState === 1) { // WebSocket.OPEN
-          client.send(message);
-        }
-      });
-    }
-  }
-
-  /**
-   * 获取任务摘要
-   */
-  _getTaskSummary() {
-    const progress = this.progressTracker.getProgress();
-    
-    return {
-      taskName: progress.taskName,
-      status: progress.status,
-      totalRows: progress.totalRows,
-      processedRows: progress.processedRows,
-      successCount: progress.successCount,
-      errorCount: progress.errorCount,
-      skippedCount: progress.skippedCount,
-      errorRate: progress.errorRate,
-      startTime: progress.startTime,
-      endTime: progress.endTime,
-      outputFiles: {
-        successFile: this.progressTracker.successFile,
-        errorFile: this.progressTracker.errorFile,
-        progressFile: this.progressTracker.progressFile,
-        rawResponseFile: this.progressTracker.rawResponseFile
-      }
-    };
-  }
-
-  /**
-   * 工具方法：延迟
-   */
-  async _sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
-  /**
-   * 清理资源
-   */
-  cleanup() {
-    this.isRunning = false;
-    this.progressTracker?.cleanup();
-    Logger.info('批处理器资源清理完成');
+    return await Promise.all(promises);
   }
 }
 

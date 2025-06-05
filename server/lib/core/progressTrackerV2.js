@@ -1,30 +1,20 @@
 import fs from 'fs';
 import path from 'path';
 import Logger from '../utils/logger.js';
-import FileHelper from '../utils/fileHelper.js';
 
-class ProgressTracker {
-  constructor(outputDir, taskName, forceClean = false) {
-    this.outputDir = outputDir;
-    this.taskName = taskName;
-    this.progressFile = path.join(outputDir, 'task_progress.json');
-    this.errorFile = path.join(outputDir, 'error_records.csv');
-    this.successFile = path.join(outputDir, 'processed_data.csv');
-    this.rawResponseFile = path.join(outputDir, 'raw_responses.jsonl');
-    
-    // 如果强制清理，删除旧的进度文件
-    if (forceClean && fs.existsSync(this.progressFile)) {
-      try {
-        fs.unlinkSync(this.progressFile);
-        Logger.info(`已清理旧的进度文件: ${this.progressFile}`);
-      } catch (error) {
-        Logger.warning(`清理进度文件失败: ${error.message}`);
-      }
-    }
+class ProgressTrackerV2 {
+  constructor(taskInfo) {
+    this.taskInfo = taskInfo;
+    this.taskId = taskInfo.id;
+    this.taskDir = taskInfo.taskDir;
+    this.progressFile = taskInfo.progressFile;
+    this.errorFile = taskInfo.errorFile;
+    this.successFile = taskInfo.successFile;
+    this.rawResponseFile = taskInfo.rawResponseFile;
     
     // 内存中的进度状态
     this.progress = {
-      taskName: taskName,
+      taskId: this.taskId,
       startTime: new Date().toISOString(),
       lastUpdateTime: new Date().toISOString(),
       totalRows: 0,
@@ -38,9 +28,6 @@ class ProgressTracker {
       estimatedTimeRemaining: 0,
       errorRate: 0
     };
-    
-    // 确保输出目录存在
-    FileHelper.ensureDir(outputDir);
     
     // 初始化CSV文件头
     this._initializeCSVFiles();
@@ -58,9 +45,6 @@ class ProgressTracker {
         Logger.info(`初始化错误记录文件: ${this.errorFile}`);
       }
       
-      // 注意：成功数据文件的表头需要根据实际输出结构动态生成
-      // 将在第一次写入数据时创建
-      
     } catch (error) {
       Logger.error(`初始化CSV文件失败: ${error.message}`);
       throw error;
@@ -73,13 +57,16 @@ class ProgressTracker {
    */
   loadProgress() {
     try {
-      Logger.info(`检查进度文件: ${this.progressFile}`);
-      Logger.info(`进度文件是否存在: ${fs.existsSync(this.progressFile)}`);
+      Logger.info(`检查任务进度文件: ${this.progressFile}`);
       
       if (fs.existsSync(this.progressFile)) {
         const progressData = JSON.parse(fs.readFileSync(this.progressFile, 'utf8'));
         
-        Logger.info(`进度文件内容: ${JSON.stringify(progressData, null, 2)}`);
+        // 验证任务ID匹配
+        if (progressData.taskId !== this.taskId) {
+          Logger.warning(`任务ID不匹配，忽略进度文件。期望: ${this.taskId}, 实际: ${progressData.taskId}`);
+          return false;
+        }
         
         // 合并已有进度数据
         this.progress = {
@@ -89,10 +76,10 @@ class ProgressTracker {
           status: 'resuming'
         };
         
-        Logger.info(`成功加载进度文件: 已处理 ${this.progress.processedRows}/${this.progress.totalRows} 行`);
+        Logger.info(`成功加载任务进度: ${this.taskId} - 已处理 ${this.progress.processedRows}/${this.progress.totalRows} 行`);
         return true;
       } else {
-        Logger.info('进度文件不存在，将从头开始处理');
+        Logger.info(`任务进度文件不存在: ${this.taskId}，将从头开始处理`);
       }
     } catch (error) {
       Logger.warning(`加载进度文件失败: ${error.message}，将从头开始处理`);
@@ -126,7 +113,7 @@ class ProgressTracker {
     this.progress.totalRows = totalRows;
     this.progress.status = 'processing';
     this.saveProgress();
-    Logger.info(`开始处理任务: ${totalRows} 行数据`);
+    Logger.info(`任务 ${this.taskId} 开始处理: ${totalRows} 行数据`);
   }
 
   /**
@@ -185,7 +172,7 @@ class ProgressTracker {
       
       this.saveProgress();
       
-      Logger.warning(`记录错误 [行${rowIndex}]: ${errorMessage}`);
+      Logger.warning(`任务 ${this.taskId} 记录错误 [行${rowIndex}]: ${errorMessage}`);
       
     } catch (error) {
       Logger.error(`记录错误数据失败: ${error.message}`);
@@ -209,7 +196,7 @@ class ProgressTracker {
     this.progress.endTime = new Date().toISOString();
     this.saveProgress();
     
-    Logger.success(`任务完成! 成功: ${this.progress.successCount}, 失败: ${this.progress.errorCount}, 跳过: ${this.progress.skippedCount}`);
+    Logger.success(`任务 ${this.taskId} 完成! 成功: ${this.progress.successCount}, 失败: ${this.progress.errorCount}, 跳过: ${this.progress.skippedCount}`);
   }
 
   /**
@@ -218,7 +205,7 @@ class ProgressTracker {
   markPaused() {
     this.progress.status = 'paused';
     this.saveProgress();
-    Logger.info('任务已暂停');
+    Logger.info(`任务 ${this.taskId} 已暂停`);
   }
 
   /**
@@ -230,7 +217,7 @@ class ProgressTracker {
     this.progress.lastError = errorMessage;
     this.progress.errorTime = new Date().toISOString();
     this.saveProgress();
-    Logger.error(`任务出错: ${errorMessage}`);
+    Logger.error(`任务 ${this.taskId} 出错: ${errorMessage}`);
   }
 
   /**
@@ -306,6 +293,7 @@ class ProgressTracker {
       const lines = results
         .filter(result => result.rawResponse)
         .map(result => JSON.stringify({
+          taskId: this.taskId,
           timestamp: new Date().toISOString(),
           position: result.position || 0,
           rawResponse: result.rawResponse
@@ -332,16 +320,18 @@ class ProgressTracker {
   }
 
   /**
-   * 清理临时文件
+   * 获取任务输出文件路径
+   * @returns {Object} 文件路径对象
    */
-  cleanup() {
-    try {
-      // 可选：清理某些临时文件，但保留重要的进度和结果文件
-      Logger.info('进度跟踪器清理完成');
-    } catch (error) {
-      Logger.warning(`清理失败: ${error.message}`);
-    }
+  getOutputFiles() {
+    return {
+      taskDir: this.taskDir,
+      successFile: this.successFile,
+      errorFile: this.errorFile,
+      progressFile: this.progressFile,
+      rawResponseFile: this.rawResponseFile
+    };
   }
 }
 
-export default ProgressTracker; 
+export default ProgressTrackerV2; 

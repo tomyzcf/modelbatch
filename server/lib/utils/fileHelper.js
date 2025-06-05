@@ -13,6 +13,16 @@ class FileHelper {
   }
 
   /**
+   * 递归删除目录
+   * @param {string} dirPath - 目录路径
+   */
+  static removeDir(dirPath) {
+    if (fs.existsSync(dirPath)) {
+      fs.rmSync(dirPath, { recursive: true, force: true });
+    }
+  }
+
+  /**
    * 检查文件是否存在
    * @param {string} filePath - 文件路径
    * @returns {boolean}
