@@ -271,34 +271,12 @@ function DataPreparation() {
   const effectiveStartRow = Math.max(1, startRow)
   const isConfigValid = selectedFields.length > 0
 
-  // 步骤指示器
-  const phaseSteps = [
-    {
-      title: '上传文件',
-      icon: <UploadOutlined />
-    },
-    {
-      title: '选择字段',
-      icon: <TableOutlined />
-    },
-    {
-      title: '设置范围',
-      icon: <SettingOutlined />
-    }
-  ]
-
-  const getCurrentPhaseStep = () => {
-    if (currentPhase === 'upload') return 0
-    if (selectedFields.length === 0) return 1
-    return 2
-  }
-
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto' }}>
       <Row gutter={24}>
-        {/* 左侧主内容区 */}
-        <Col span={16}>
-          <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        {/* 主要内容区域 */}
+        <Col span={24}>
+          <Space direction="vertical" style={{ width: '100%' }} size="large">
             {/* 页面标题和进度 */}
             <div>
               <Title level={4}>
@@ -308,21 +286,6 @@ function DataPreparation() {
               <Paragraph type="secondary">
                 上传数据文件，选择要处理的字段和设置处理范围。
               </Paragraph>
-              
-              {/* 阶段步骤指示器 */}
-              <Steps 
-                current={getCurrentPhaseStep()} 
-                size="small" 
-                style={{ marginTop: 16 }}
-              >
-                {phaseSteps.map((step, index) => (
-                  <Steps.Step 
-                    key={index} 
-                    title={step.title} 
-                    icon={step.icon}
-                  />
-                ))}
-              </Steps>
             </div>
 
             {/* 文件上传区域 */}
@@ -422,13 +385,6 @@ function DataPreparation() {
                 >
                   {fileData.previewData.length > 0 ? (
                     <>
-                      <Alert
-                        type="info"
-                        message="操作说明"
-                        description="点击表头的复选框选择要处理的字段。选中的列会高亮显示。当前显示前10行数据供预览。"
-                        showIcon
-                        style={{ marginBottom: 16 }}
-                      />
                       <Table
                         columns={columns}
                         dataSource={tableData.slice(0, 10)}
@@ -450,26 +406,7 @@ function DataPreparation() {
                 </Card>
 
                 {/* 字段选择摘要 */}
-                {selectedFields.length > 0 && (
-                  <Card 
-                    title="已选择的字段" 
-                    size="small"
-                    extra={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-                  >
-                    <Space wrap>
-                      {selectedFields.map(index => (
-                        <Tag 
-                          key={index} 
-                          color="blue"
-                          closable
-                          onClose={() => handleFieldCheck(index, false)}
-                        >
-                          第{index + 1}列：{fileData.headers[index]}
-                        </Tag>
-                      ))}
-                    </Space>
-                  </Card>
-                )}
+                {/* 已删除：重复的字段选择区域 */}
 
                 {/* 处理范围设置 */}
                 <Collapse 
@@ -530,17 +467,6 @@ function DataPreparation() {
                               </Space>
                             </Col>
                           </Row>
-                          
-                          {selectedFields.length > 0 && (
-                            <div style={{ marginTop: 16 }}>
-                              <Alert
-                                type="info"
-                                icon={<InfoCircleOutlined />}
-                                message={`将处理第 ${effectiveStartRow} 到第 ${effectiveEndRow} 行，共 ${effectiveEndRow - effectiveStartRow + 1} 行数据`}
-                                showIcon
-                              />
-                            </div>
-                          )}
                         </>
                       )
                     }
@@ -552,7 +478,7 @@ function DataPreparation() {
                   <Alert
                     type="success"
                     message="数据准备完成！"
-                    description={`已选择 ${selectedFields.length} 个字段，处理范围为第 ${effectiveStartRow} 到第 ${effectiveEndRow} 行。可以进入下一步进行API配置。`}
+                    description={`已选择 ${selectedFields.length} 个字段。可以进入下一步进行API配置。`}
                     icon={<CheckCircleOutlined />}
                     showIcon
                     action={
@@ -581,73 +507,7 @@ function DataPreparation() {
         </Col>
 
         {/* 右侧配置指导 */}
-        <Col span={8}>
-          <Card 
-            title="配置指导" 
-            size="small" 
-            style={{ position: 'sticky', top: 24 }}
-          >
-            <Space direction="vertical" size="small">
-              {currentPhase === 'upload' ? (
-                <>
-                  <div>
-                    <Text strong>支持的文件格式：</Text>
-                    <ul style={{ marginTop: 8, marginLeft: 16, color: '#666' }}>
-                      <li><strong>CSV文件：</strong>逗号分隔值格式</li>
-                      <li><strong>Excel文件：</strong>.xlsx 或 .xls 格式</li>
-                      <li><strong>JSON文件：</strong>结构化数据格式</li>
-                    </ul>
-                  </div>
-                  <div>
-                    <Text strong>文件要求：</Text>
-                    <ul style={{ marginTop: 8, marginLeft: 16, color: '#666' }}>
-                      <li>文件大小不超过 50MB</li>
-                      <li>第一行应为列标题</li>
-                      <li>数据格式应保持一致</li>
-                      <li>避免包含空行</li>
-                    </ul>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <Text strong>字段选择：</Text>
-                    <ul style={{ marginTop: 8, marginLeft: 16, color: '#666' }}>
-                      <li>点击表头复选框选择字段</li>
-                      <li>选中的列会高亮显示</li>
-                      <li>支持全选和清除操作</li>
-                      <li>至少选择一个字段</li>
-                    </ul>
-                  </div>
-                  <div>
-                    <Text strong>处理范围：</Text>
-                    <ul style={{ marginTop: 8, marginLeft: 16, color: '#666' }}>
-                      <li><strong>起始行：</strong>从第几行开始处理</li>
-                      <li><strong>结束行：</strong>处理到第几行</li>
-                      <li><strong>分批处理：</strong>建议大文件分批</li>
-                      <li><strong>断点续传：</strong>支持从指定行继续</li>
-                    </ul>
-                  </div>
-                  <div>
-                    <Text strong>优化建议：</Text>
-                    <ul style={{ marginTop: 8, marginLeft: 16, color: '#666' }}>
-                      <li>选择包含有效文本的字段</li>
-                      <li>避免选择空值较多的字段</li>
-                      <li>先用小范围测试效果</li>
-                      <li>记录成功的配置</li>
-                    </ul>
-                  </div>
-                </>
-              )}
-              
-              <Divider style={{ margin: '12px 0' }} />
-              
-              <Text type="secondary">
-                💡 提示：合理的数据准备是成功处理的关键
-              </Text>
-            </Space>
-          </Card>
-        </Col>
+        {/* 已删除：占用空间的右侧配置指导区域 */}
       </Row>
     </div>
   )

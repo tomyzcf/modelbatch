@@ -66,19 +66,28 @@ function TaskExecution() {
   useEffect(() => {
     if (wsConnected) {
       apiService.on('log', (data) => {
-        backendLogs.push({
-          id: Date.now() + Math.random(),
-          timestamp: data.timestamp,
-          level: data.level,
-          message: data.message,
-          fullMessage: data.fullMessage
-        });
+        // 检查重复日志：相同时间戳和消息内容
+        const isDuplicate = backendLogs.some(log => 
+          log.timestamp === data.timestamp && 
+          log.message === data.message &&
+          Math.abs(log.id - (Date.now() + Math.random())) < 100 // 100ms内的重复
+        );
         
-        if (backendLogs.length > MAX_BACKEND_LOGS) {
-          backendLogs = backendLogs.slice(-MAX_BACKEND_LOGS);
+        if (!isDuplicate) {
+          backendLogs.push({
+            id: Date.now() + Math.random(),
+            timestamp: data.timestamp,
+            level: data.level,
+            message: data.message,
+            fullMessage: data.fullMessage
+          });
+          
+          if (backendLogs.length > MAX_BACKEND_LOGS) {
+            backendLogs = backendLogs.slice(-MAX_BACKEND_LOGS);
+          }
+          
+          updateBackendLogsDisplay();
         }
-        
-        updateBackendLogsDisplay();
       });
     }
   }, [wsConnected]);
@@ -109,8 +118,13 @@ function TaskExecution() {
     
     const startTime = typeof taskStatus.startTime === 'string' ? 
       new Date(taskStatus.startTime) : taskStatus.startTime;
-    const currentTime = new Date();
-    const elapsedSeconds = Math.floor((currentTime - startTime) / 1000);
+    
+    // 如果任务已完成，使用结束时间
+    const endTime = taskStatus.currentStatus === 'completed' && taskStatus.endTime ?
+      (typeof taskStatus.endTime === 'string' ? new Date(taskStatus.endTime) : taskStatus.endTime) :
+      new Date();
+      
+    const elapsedSeconds = Math.floor((endTime - startTime) / 1000);
     
     if (elapsedSeconds < 0) return '0秒';
     
@@ -368,26 +382,15 @@ function TaskExecution() {
                 )}
                 
                 {(pagePhase === 'completed' || taskStatus.currentStatus === 'stopped') && (
-                  <>
-                    <Button 
-                      size="large"
-                      icon={<ReloadOutlined />}
-                      onClick={handleRestartTask}
-                      disabled={executing}
-                      loading={executing}
-                    >
-                      重新执行
-                    </Button>
-                    {(taskStatus.successFile || taskStatus.resultFilePath) && (
-                      <Button 
-                        type="primary" 
-                        icon={<DownloadOutlined />} 
-                        onClick={handleDownload}
-                      >
-                        下载结果
-                      </Button>
-                    )}
-                  </>
+                  <Button 
+                    size="large"
+                    icon={<ReloadOutlined />}
+                    onClick={handleRestartTask}
+                    disabled={executing}
+                    loading={executing}
+                  >
+                    重新执行
+                  </Button>
                 )}
               </Space>
             </Col>
@@ -493,41 +496,6 @@ function TaskExecution() {
                 </Button>
               ]}
             />
-            
-            {/* 简化的统计信息 */}
-            <Row gutter={24} style={{ marginTop: 24 }}>
-              <Col span={6}>
-                <Statistic 
-                  title="总处理数" 
-                  value={taskStatus.processedCount} 
-                  prefix={<FileExcelOutlined />}
-                />
-              </Col>
-              <Col span={6}>
-                <Statistic 
-                  title="成功数" 
-                  value={taskStatus.successCount} 
-                  valueStyle={{ color: '#3f8600' }}
-                  prefix={<CheckCircleOutlined />}
-                />
-              </Col>
-              <Col span={6}>
-                <Statistic 
-                  title="失败数" 
-                  value={taskStatus.errorCount} 
-                  valueStyle={{ color: '#cf1322' }}
-                  prefix={<InfoCircleOutlined />}
-                />
-              </Col>
-              <Col span={6}>
-                <Statistic 
-                  title="成功率" 
-                  value={getSuccessRate()} 
-                  suffix="%" 
-                  valueStyle={{ color: getSuccessRate() >= 90 ? '#3f8600' : getSuccessRate() >= 70 ? '#faad14' : '#cf1322' }}
-                />
-              </Col>
-            </Row>
           </Card>
         )}
 
@@ -557,9 +525,6 @@ function TaskExecution() {
             message="任务执行失败"
             description="任务执行过程中发生错误，请检查后端日志并重新配置后重试。"
             showIcon
-            action={
-              <Button size="small" type="primary" onClick={handleStartTask}>重新执行</Button>
-            }
           />
         )}
 
