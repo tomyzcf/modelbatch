@@ -35,184 +35,13 @@ import {
   RocketOutlined
 } from '@ant-design/icons'
 import useAppStore from '../stores/appStore'
+import apiService from '../utils/api'
 
 const { Title, Text, Paragraph } = Typography
 
-// 模拟任务执行的Hook (已改为使用真实后端调用，此Hook暂时保留备用)
-/*
-function useTaskRunner() {
-  const { 
-    taskStatus, 
-    setTaskStatus, 
-    addTaskLog, 
-    addErrorLog,
-    fieldSelection,
-    fileData
-  } = useAppStore()
-  
-  const intervalRef = useRef(null)
-  const timeoutRef = useRef(null)
-
-  // 开始任务
-  const startTask = () => {
-    // 计算总处理数量
-    const startRow = fieldSelection.startRow || 1
-    const endRow = fieldSelection.endRow || fileData.totalRows
-    const totalCount = Math.max(0, endRow - startRow + 1)
-    
-    setTaskStatus({
-      isRunning: true,
-      isCompleted: false,
-      currentStatus: 'running',
-      startTime: new Date(),
-      totalCount,
-      processedCount: 0,
-      progress: 0,
-      successCount: 0,
-      errorCount: 0,
-      logs: [],
-      errorLogs: []
-    })
-    
-    addTaskLog({
-      message: '任务开始执行...',
-      type: 'info'
-    })
-    
-    addTaskLog({
-      message: `预计处理 ${totalCount} 条数据`,
-      type: 'info'
-    })
-    
-    // 模拟任务执行进度
-    let processed = 0
-    let successCount = 0
-    let errorCount = 0
-    
-    intervalRef.current = setInterval(() => {
-      // 随机处理速度（1-5条/次）
-      const batchSize = Math.floor(Math.random() * 5) + 1
-      processed = Math.min(processed + batchSize, totalCount)
-      
-      // 模拟成功/失败概率（90%成功率）
-      const batchSuccess = Math.floor(batchSize * (0.85 + Math.random() * 0.1))
-      const batchError = batchSize - batchSuccess
-      
-      successCount += batchSuccess
-      errorCount += batchError
-      
-      const progress = Math.round((processed / totalCount) * 100)
-      const speed = Math.round((processed / ((Date.now() - new Date(taskStatus.startTime || Date.now())) / 60000)) || 0)
-      const estimatedTimeLeft = speed > 0 ? Math.round((totalCount - processed) / speed) : 0
-      
-      setTaskStatus({
-        processedCount: processed,
-        progress,
-        successCount,
-        errorCount,
-        speed,
-        estimatedTimeLeft: estimatedTimeLeft * 60 // 转换为秒
-      })
-      
-      // 添加处理日志
-      if (processed % 10 === 0 || processed === totalCount) {
-        addTaskLog({
-          message: `已处理 ${processed}/${totalCount} 条数据，成功: ${successCount}, 失败: ${errorCount}`,
-          type: processed === totalCount ? 'success' : 'info'
-        })
-      }
-      
-      // 模拟错误日志
-      if (batchError > 0 && Math.random() > 0.7) {
-        addErrorLog({
-          message: '处理失败',
-          detail: `第 ${processed - batchError + 1} 行数据格式错误`,
-          type: 'data_error'
-        })
-      }
-      
-      // 任务完成
-      if (processed >= totalCount) {
-        clearInterval(intervalRef.current)
-        setTaskStatus({
-          isRunning: false,
-          isCompleted: true,
-          currentStatus: 'completed',
-          endTime: new Date(),
-          resultFilePath: `/results/${fileData.fileName}_processed_${Date.now()}.xlsx`
-        })
-        
-        addTaskLog({
-          message: '任务执行完成！',
-          type: 'success'
-        })
-        
-        message.success('数据处理完成！')
-      }
-    }, 1000 + Math.random() * 2000) // 1-3秒间隔
-  }
-
-  // 暂停任务
-  const pauseTask = () => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current)
-    }
-    setTaskStatus({
-      isRunning: false,
-      currentStatus: 'paused'
-    })
-    addTaskLog({
-      message: '任务已暂停',
-      type: 'warning'
-    })
-  }
-
-  // 停止任务
-  const stopTask = () => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current)
-    }
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current)
-    }
-    setTaskStatus({
-      isRunning: false,
-      currentStatus: 'stopped',
-      endTime: new Date()
-    })
-    addTaskLog({
-      message: '任务已停止',
-      type: 'error'
-    })
-  }
-
-  // 重新开始任务
-  const restartTask = () => {
-    stopTask()
-    setTimeout(() => {
-      startTask()
-    }, 1000)
-  }
-
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current)
-      }
-    }
-  }, [])
-
-  return {
-    startTask,
-    pauseTask,
-    stopTask,
-    restartTask
-  }
-}
-*/
+// 后端日志管理
+let backendLogs = [];
+const MAX_BACKEND_LOGS = 1000; // 最多保留1000条日志
 
 function TaskExecution() {
   const { 
@@ -230,7 +59,8 @@ function TaskExecution() {
     wsConnected,
     downloadResult,
     reset,
-    setCurrentStep
+    setCurrentStep,
+    currentTaskId
   } = useAppStore()
   
   const [configModalVisible, setConfigModalVisible] = useState(false)
@@ -238,7 +68,9 @@ function TaskExecution() {
   const [executing, setExecuting] = useState(false)
   
   const configSummary = getConfigSummary()
-  // const { startTask, pauseTask, stopTask, restartTask } = useTaskRunner() // 不再使用mock Hook
+  const [isRunning, setIsRunning] = useState(false)
+  const intervalRef = useRef(null)
+  const timeoutRef = useRef(null)
   
   // 初始化WebSocket连接
   useEffect(() => {
@@ -247,29 +79,86 @@ function TaskExecution() {
     }
   }, [wsConnected, initWebSocket])
   
-  // 格式化时间
-  const formatDuration = (seconds) => {
-    if (!seconds) return '0秒'
-    const hours = Math.floor(seconds / 3600)
-    const minutes = Math.floor((seconds % 3600) / 60)
-    const secs = seconds % 60
-    
-    if (hours > 0) {
-      return `${hours}小时${minutes}分钟${secs}秒`
-    } else if (minutes > 0) {
-      return `${minutes}分钟${secs}秒`
-    } else {
-      return `${secs}秒`
+  // 监听后端日志
+  useEffect(() => {
+    if (wsConnected) {
+      // 添加后端日志监听器
+      apiService.on('log', (data) => {
+        // 添加到后端日志列表
+        backendLogs.push({
+          id: Date.now() + Math.random(),
+          timestamp: data.timestamp,
+          level: data.level,
+          message: data.message,
+          fullMessage: data.fullMessage
+        });
+        
+        // 限制日志数量
+        if (backendLogs.length > MAX_BACKEND_LOGS) {
+          backendLogs = backendLogs.slice(-MAX_BACKEND_LOGS);
+        }
+        
+        // 更新显示
+        updateBackendLogsDisplay();
+      });
     }
-  }
-  
+  }, [wsConnected]);
+
+  // 更新后端日志显示
+  const updateBackendLogsDisplay = () => {
+    const logElement = document.getElementById('backend-logs');
+    if (logElement) {
+      const logContent = backendLogs.map(log => {
+        const color = {
+          info: '#00ff00',
+          warning: '#ffff00', 
+          error: '#ff0000',
+          success: '#00ffff'
+        }[log.level] || '#00ff00';
+        
+        return `<div style="color: ${color}; margin-bottom: 2px;">${log.fullMessage}</div>`;
+      }).join('');
+      
+      logElement.innerHTML = logContent || '<div>等待后端日志...</div>';
+      logElement.scrollTop = logElement.scrollHeight; // 自动滚动到底部
+    }
+  };
+
   // 获取执行时间
   const getExecutionTime = () => {
     if (taskStatus.startTime) {
-      const endTime = taskStatus.endTime || new Date()
-      return Math.floor((endTime - new Date(taskStatus.startTime)) / 1000)
+      const startTime = typeof taskStatus.startTime === 'string' ? 
+        new Date(taskStatus.startTime) : taskStatus.startTime;
+      const endTime = taskStatus.endTime ? 
+        (typeof taskStatus.endTime === 'string' ? new Date(taskStatus.endTime) : taskStatus.endTime) :
+        new Date();
+      return Math.max(0, Math.floor((endTime - startTime) / 1000));
     }
-    return 0
+    return 0;
+  }
+
+  // 格式化持续时间
+  const formatElapsedTime = () => {
+    if (!taskStatus.startTime) return '-';
+    
+    const startTime = typeof taskStatus.startTime === 'string' ? 
+      new Date(taskStatus.startTime) : taskStatus.startTime;
+    const currentTime = new Date();
+    const elapsedSeconds = Math.floor((currentTime - startTime) / 1000);
+    
+    if (elapsedSeconds < 0) return '0秒';
+    
+    const hours = Math.floor(elapsedSeconds / 3600);
+    const minutes = Math.floor((elapsedSeconds % 3600) / 60);
+    const seconds = elapsedSeconds % 60;
+    
+    if (hours > 0) {
+      return `${hours}小时${minutes}分钟${seconds}秒`;
+    } else if (minutes > 0) {
+      return `${minutes}分钟${seconds}秒`;
+    } else {
+      return `${seconds}秒`;
+    }
   }
 
   // 获取状态颜色
@@ -364,10 +253,10 @@ function TaskExecution() {
 
   // 下载结果文件
   const handleDownload = () => {
-    if (taskStatus.resultFilePath) {
+    if (taskStatus.successFile || taskStatus.resultFilePath) {
       try {
-      downloadResult()
-      message.success('开始下载结果文件')
+        downloadResult()
+        message.success('开始下载结果文件')
       } catch (error) {
         message.error('下载失败，请重试')
       }
@@ -559,11 +448,11 @@ function TaskExecution() {
                     <Text type="secondary">开始时间: {new Date(taskStatus.startTime).toLocaleString()}</Text>
                   </Col>
                   <Col span={8}>
-                    <Text type="secondary">已执行: {formatDuration(getExecutionTime())}</Text>
+                    <Text type="secondary">已执行: {formatElapsedTime()}</Text>
                   </Col>
                   {taskStatus.isRunning && taskStatus.estimatedTimeLeft > 0 && (
                     <Col span={8}>
-                      <Text type="secondary">预计剩余: {formatDuration(taskStatus.estimatedTimeLeft)}</Text>
+                      <Text type="secondary">预计剩余: {formatElapsedTime(taskStatus.estimatedTimeLeft)}</Text>
                     </Col>
                   )}
                 </Row>
@@ -589,6 +478,25 @@ function TaskExecution() {
             </div>
           </Card>
         )}
+
+        {/* 后端实时日志 */}
+        <Card title="后端实时日志" style={{ minHeight: 300 }}>
+          <div 
+            id="backend-logs" 
+            style={{ 
+              maxHeight: 300, 
+              overflow: 'auto', 
+              backgroundColor: '#000', 
+              color: '#00ff00', 
+              fontFamily: 'Consolas, monospace', 
+              fontSize: '12px',
+              padding: '10px',
+              borderRadius: '4px'
+            }}
+          >
+            <div>正在连接后端日志流...</div>
+          </div>
+        </Card>
 
         {/* 错误日志 */}
         {taskStatus.errorLogs.length > 0 && (
@@ -624,13 +532,13 @@ function TaskExecution() {
       <Result
         status="success"
         title="数据处理完成！"
-        subTitle={`成功处理 ${taskStatus.successCount} 条数据，失败 ${taskStatus.errorCount} 条，总耗时 ${formatDuration(getExecutionTime())}`}
+        subTitle={`成功处理 ${taskStatus.successCount} 条数据，失败 ${taskStatus.errorCount} 条，总耗时 ${formatElapsedTime()}`}
         extra={[
           <Button 
             type="primary" 
             icon={<DownloadOutlined />} 
             onClick={handleDownload} 
-            disabled={!taskStatus.resultFilePath}
+            disabled={!taskStatus.successFile && !taskStatus.resultFilePath}
           >
             下载结果文件
           </Button>,
@@ -771,7 +679,7 @@ function TaskExecution() {
             )}
           </Descriptions.Item>
           <Descriptions.Item label="总耗时">
-            {formatDuration(getExecutionTime())}
+            {formatElapsedTime()}
           </Descriptions.Item>
         </Descriptions>
       </Card>
@@ -953,7 +861,7 @@ function TaskExecution() {
                     <Tag color={getStatusColor(taskStatus.currentStatus)} style={{ fontSize: 14, padding: '4px 12px' }}>
                       {getStatusText(taskStatus.currentStatus)}
                     </Tag>
-                    {pagePhase === 'completed' && taskStatus.resultFilePath && (
+                    {pagePhase === 'completed' && (taskStatus.successFile || taskStatus.resultFilePath) && (
                       <Button type="primary" icon={<DownloadOutlined />} onClick={handleDownload}>
                         下载结果
                       </Button>

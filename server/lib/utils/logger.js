@@ -5,11 +5,17 @@ class Logger {
   constructor() {
     this.logFile = null;
     this.enableConsole = true;
+    this.broadcastCallback = null;
   }
 
   static setLogFile(filePath) {
     Logger.instance = Logger.instance || new Logger();
     Logger.instance.logFile = filePath;
+  }
+
+  static setBroadcastCallback(callback) {
+    Logger.instance = Logger.instance || new Logger();
+    Logger.instance.broadcastCallback = callback;
   }
 
   static info(message) {
@@ -35,6 +41,21 @@ class Logger {
     // 控制台输出
     if (Logger.instance?.enableConsole !== false) {
       console.log(logMessage);
+    }
+
+    // WebSocket广播日志
+    if (Logger.instance?.broadcastCallback) {
+      try {
+        Logger.instance.broadcastCallback({
+          type: 'log',
+          level: level.toLowerCase(),
+          message: message,
+          timestamp: timestamp,
+          fullMessage: logMessage
+        });
+      } catch (error) {
+        console.error('WebSocket广播日志失败:', error.message);
+      }
     }
 
     // 文件输出（如果设置了日志文件）

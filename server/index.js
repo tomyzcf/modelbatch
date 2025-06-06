@@ -237,6 +237,11 @@ app.post('/api/execute-task', async (req, res) => {
     // 创建批处理器实例
     const batchProcessor = new BatchProcessor()
     
+    // 设置进度回调
+    batchProcessor.setProgressCallback((data) => {
+      broadcast(data);
+    });
+    
     // 存储活动任务，以便后续管理
     activeTasks.set(taskId, batchProcessor)
 
@@ -292,8 +297,12 @@ async function executeTaskAsync(taskId, batchProcessor, dataFilePath, selectedFi
         processedRows: result.processedRows,
         successCount: result.successCount,
         errorCount: result.errorCount,
+        skippedCount: result.skippedCount,
         taskId: result.taskId,
-        outputFiles: result.outputFiles
+        outputFiles: result.outputFiles,
+        successFile: result.outputFiles?.successFile ? path.basename(result.outputFiles.successFile) : null,
+        errorFile: result.outputFiles?.errorFile ? path.basename(result.outputFiles.errorFile) : null,
+        resultFilePath: result.outputFiles?.successFile || null
       }
     })
 
@@ -388,11 +397,39 @@ app.post('/api/tasks/cleanup', (req, res) => {
 app.get('/api/download/:filename', async (req, res) => {
   try {
     const filename = req.params.filename
-    const filePath = path.join(__dirname, '../../outputData', filename)
+    console.log(`请求下载文件: ${filename}`)
     
-    // 检查文件是否存在
+    // 直接在tasks目录中查找文件
+    const tasksDir = path.join(__dirname, 'outputData/tasks')
+    let filePath = null
+    
+    try {
+      const taskDirs = await fs.readdir(tasksDir)
+      console.log(`在tasks目录中查找，发现 ${taskDirs.length} 个任务目录`)
+      
+      for (const taskDir of taskDirs) {
+        const taskFilePath = path.join(tasksDir, taskDir, filename)
+        const exists = await fs.access(taskFilePath).then(() => true).catch(() => false)
+        if (exists) {
+          filePath = taskFilePath
+          console.log(`找到文件: ${filePath}`)
+          break
+        }
+      }
+    } catch (error) {
+      console.log('查找tasks目录时出错:', error.message)
+      return res.status(404).json({ error: 'tasks目录不存在或无法访问' })
+    }
+    
+    if (!filePath) {
+      console.log(`文件 ${filename} 未找到`)
+      return res.status(404).json({ error: '文件不存在' })
+    }
+    
+    // 确保文件存在
     await fs.access(filePath)
     
+    console.log(`准备下载文件: ${filePath}`)
     res.download(filePath, filename)
   } catch (error) {
     console.error('文件下载错误:', error)
@@ -407,6 +444,9 @@ app.get('/api/health', (req, res) => {
 
 // 启动服务器
 const PORT = process.env.PORT || 3001
+
+// 设置Logger的WebSocket广播回调
+Logger.setBroadcastCallback(broadcast);
 
 server.listen(PORT, () => {
   console.log(`后端服务器启动在端口 ${PORT}`)

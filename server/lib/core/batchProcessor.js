@@ -15,6 +15,53 @@ class BatchProcessor {
     this.isProcessing = false;
     this.isPaused = false;
     this.currentTask = null;
+    this.progressCallback = null; // 进度回调函数
+  }
+
+  /**
+   * 设置进度回调函数
+   * @param {Function} callback - 进度更新回调
+   */
+  setProgressCallback(callback) {
+    this.progressCallback = callback;
+  }
+
+  /**
+   * 触发进度更新
+   */
+  _notifyProgress() {
+    if (this.progressCallback && this.progressTracker) {
+      const progress = this.progressTracker.getProgress();
+      this.progressCallback({
+        type: 'progress',
+        taskId: this.currentTask?.id,
+        progress: {
+          totalRows: progress.totalRows,
+          processedRows: progress.processedRows,
+          successCount: progress.successCount,
+          errorCount: progress.errorCount,
+          skippedCount: progress.skippedCount,
+          progress: progress.totalRows > 0 ? Math.round((progress.processedRows / progress.totalRows) * 100) : 0,
+          speed: this._calculateSpeed(progress),
+          status: progress.status,
+          startTime: progress.startTime,
+          lastUpdateTime: progress.lastUpdateTime
+        }
+      });
+    }
+  }
+
+  /**
+   * 计算处理速度（条/分钟）
+   */
+  _calculateSpeed(progress) {
+    if (!progress.startTime || progress.processedRows <= 0) return 0;
+    
+    const startTime = new Date(progress.startTime);
+    const currentTime = new Date();
+    const elapsedMinutes = (currentTime - startTime) / (1000 * 60);
+    
+    return elapsedMinutes > 0 ? Math.round(progress.processedRows / elapsedMinutes) : 0;
   }
 
   /**
@@ -97,6 +144,9 @@ class BatchProcessor {
       if (!hasProgress) {
         this.progressTracker.setTotalRows(csvData.length);
         this.taskManager.updateTaskStatus(taskInfo.id, 'processing');
+        
+        // 发送初始进度
+        this._notifyProgress();
       }
 
       const result = await this._processData(csvData, selectedFields, configManager, startPosition);
@@ -205,8 +255,7 @@ class BatchProcessor {
       }
 
       const results = [];
-      // 添加表头作为第一行
-      results.push(csvData.headers);
+      // **不要将表头作为第一行添加到数据中，表头仅用于字段映射**
       
       // 将每行数据转换为数组格式
       csvData.rows.forEach(row => {
@@ -214,7 +263,7 @@ class BatchProcessor {
         results.push(rowArray);
       });
       
-      Logger.info(`成功读取CSV文件，共 ${results.length - 1} 行数据`);
+      Logger.info(`成功读取CSV文件，共 ${results.length} 行数据（已排除表头）`);
       return results;
       
     } catch (error) {
@@ -232,7 +281,6 @@ class BatchProcessor {
    * @returns {Promise<object>} 处理结果
    */
   async _processData(csvData, selectedFields, configManager, startPosition = 0) {
-    const prompt = configManager.buildPrompt(''); // 获取基础提示词结构
     const processConfig = configManager.getProcessConfig();
     
     let successCount = 0;
@@ -249,7 +297,7 @@ class BatchProcessor {
       Logger.info(`处理批次: ${position + 1}-${batchEnd} / ${csvData.length}`);
 
       try {
-        const batchResults = await this._processBatch(batch, selectedFields, prompt, position);
+        const batchResults = await this._processBatch(batch, selectedFields, configManager, position);
         
         // 记录成功结果
         const successResults = batchResults.filter(r => r.success);
@@ -269,6 +317,9 @@ class BatchProcessor {
         position = batchEnd;
         this.progressTracker.updatePosition(position);
 
+        // 发送进度更新
+        this._notifyProgress();
+
         // 批次间隔延迟
         if (position < csvData.length && processConfig.retryInterval > 0) {
           await new Promise(resolve => setTimeout(resolve, processConfig.retryInterval * 1000));
@@ -285,6 +336,9 @@ class BatchProcessor {
         
         position = batchEnd;
         this.progressTracker.updatePosition(position);
+
+        // 发送进度更新（包括错误情况）
+        this._notifyProgress();
       }
     }
 
@@ -307,11 +361,11 @@ class BatchProcessor {
    * 处理单个批次
    * @param {Array<Array<string>>} batch - 批次数据
    * @param {Array<number>} selectedFields - 选中的字段索引
-   * @param {object} promptTemplate - 提示词模板
+   * @param {ConfigManager} configManager - 配置管理器
    * @param {number} basePosition - 基础位置
    * @returns {Promise<Array<object>>} 批次处理结果
    */
-  async _processBatch(batch, selectedFields, promptTemplate, basePosition) {
+  async _processBatch(batch, selectedFields, configManager, basePosition) {
     const promises = batch.map(async (row, index) => {
       const position = basePosition + index;
       
@@ -328,11 +382,11 @@ class BatchProcessor {
           };
         }
 
-        // 构建完整提示词
-        const fullPrompt = promptTemplate.user.replace('{input_text}', selectedContent);
+        // 使用ConfigManager构建完整提示词，传入实际的输入内容
+        const promptTemplate = configManager.buildPrompt(selectedContent);
         
         // 调用API
-        const apiResult = await this.provider.makeRequest(promptTemplate.system, fullPrompt);
+        const apiResult = await this.provider.makeRequest(promptTemplate.system, promptTemplate.user);
         
         if (!apiResult) {
           return {

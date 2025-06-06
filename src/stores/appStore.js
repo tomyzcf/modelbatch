@@ -62,7 +62,10 @@ const useAppStore = create((set, get) => ({
     estimatedTimeLeft: 0,
     logs: [],
     errorLogs: [],
-    resultFilePath: null
+    resultFilePath: null,
+    successFile: null,
+    errorFile: null,
+    lastUpdateTime: null
   },
 
   // 当前任务ID
@@ -162,9 +165,14 @@ const useAppStore = create((set, get) => ({
         set((state) => ({
           taskStatus: {
             ...state.taskStatus,
-            processedCount: data.processed,
-            totalCount: data.total,
-            progress: data.progress
+            processedCount: data.progress.processedRows,
+            totalCount: data.progress.totalRows,
+            successCount: data.progress.successCount,
+            errorCount: data.progress.errorCount,
+            progress: data.progress.progress,
+            speed: data.progress.speed,
+            currentStatus: 'running',
+            lastUpdateTime: data.progress.lastUpdateTime
           }
         }))
       })
@@ -177,7 +185,14 @@ const useAppStore = create((set, get) => ({
             isCompleted: true,
             currentStatus: 'completed',
             endTime: new Date(),
-            resultFilePath: data.resultFile
+            processedCount: data.result.processedRows,
+            totalCount: data.result.totalRows,
+            successCount: data.result.successCount,
+            errorCount: data.result.errorCount,
+            progress: 100,
+            resultFilePath: data.result.resultFilePath,
+            successFile: data.result.successFile,
+            errorFile: data.result.errorFile
           }
         }))
         
@@ -269,30 +284,37 @@ const useAppStore = create((set, get) => ({
 
       // 启动任务
       const taskResult = await apiService.executeTask(taskParams)
-
+      
       if (taskResult.success) {
-        // 保存任务ID并更新任务状态
+        // 保存任务ID
+        set({ currentTaskId: taskResult.taskId })
+        
+        // 设置任务开始状态
         set((state) => ({
-          currentTaskId: taskResult.taskId,
           taskStatus: {
             ...state.taskStatus,
             isRunning: true,
             isCompleted: false,
             currentStatus: 'running',
-            startTime: new Date(),
-            totalCount: (state.fieldSelection.endRow || state.fileData.totalRows) - (state.fieldSelection.startRow || 1) + 1,
+            startTime: new Date().toISOString(), // 使用ISO字符串
+            endTime: null,
+            totalCount: state.fieldSelection.endRow ? 
+              (state.fieldSelection.endRow - state.fieldSelection.startRow + 1) : 
+              state.fileData.totalRows,
             processedCount: 0,
             progress: 0,
-            logs: [],
+            successCount: 0,
+            errorCount: 0,
+            speed: 0,
+            logs: [{
+              message: `任务 ${taskResult.taskId} 已启动，正在处理数据...`,
+              type: 'info',
+              timestamp: new Date().toISOString()
+            }],
             errorLogs: []
           }
         }))
-
-        get().addTaskLog({
-          message: '任务已启动，正在处理数据...',
-          type: 'info'
-        })
-
+        
         return taskResult
       } else {
         throw new Error(taskResult.error || '任务启动失败')
@@ -442,7 +464,10 @@ const useAppStore = create((set, get) => ({
   // 下载结果文件
   downloadResult: () => {
     const state = get()
-    if (state.taskStatus.resultFilePath) {
+    if (state.taskStatus.successFile) {
+      // 使用successFile而不是resultFilePath
+      apiService.downloadResult(state.taskStatus.successFile)
+    } else if (state.taskStatus.resultFilePath) {
       const filename = state.taskStatus.resultFilePath.split('/').pop()
       apiService.downloadResult(filename)
     }
@@ -571,7 +596,10 @@ const useAppStore = create((set, get) => ({
       estimatedTimeLeft: 0,
       logs: [],
       errorLogs: [],
-      resultFilePath: null
+      resultFilePath: null,
+      successFile: null,
+      errorFile: null,
+      lastUpdateTime: null
     }
   }),
 
