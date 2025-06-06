@@ -59,7 +59,7 @@ function PromptConfig() {
       setPromptConfig({
         system: '你是一个专业的AI助手，能够准确理解和处理用户的数据请求。',
         task: '请处理以下数据：\n\n{input_text}',
-        output: '{"result": "处理结果", "status": "处理状态"}',
+        output: '{\n  "result": "处理结果",\n  "status": "处理状态"\n}',
         variables: '',
         examples: ''
       })
@@ -170,7 +170,7 @@ function PromptConfig() {
                 提示词配置
               </Title>
               <Paragraph type="secondary">
-                配置用于处理数据的提示词模板。使用JSON格式的结构化配置，可节省60-80%的token消耗。
+                配置用于处理数据的提示词模板。
               </Paragraph>
             </div>
 
@@ -263,7 +263,11 @@ function PromptConfig() {
                   {promptConfig.task && promptConfig.task.includes('{input_text}') && (
                     <div style={{ marginTop: 8, padding: 8, background: '#f9f9f9', borderRadius: 4, fontSize: 12 }}>
                       <Text type="secondary">
-                        <strong>预览示例：</strong>{promptConfig.task.replace('{input_text}', '张三,28,北京,工程师')}
+                        <strong>预览示例：</strong>{promptConfig.task.replace('{input_text}', 
+                          fileData.previewData && fileData.previewData[0] 
+                            ? fileData.previewData[0].join(',')
+                            : '张三,28,北京,工程师'
+                        )}
                       </Text>
                     </div>
                   )}
@@ -392,7 +396,7 @@ function PromptConfig() {
                 </ul>
               </div>
               <Alert 
-                message="💡 JSON格式可节省60-80%的token消耗" 
+                message="💡 提示：使用结构化JSON输出便于后续处理" 
                 type="info" 
                 size="small" 
                 showIcon={false}
