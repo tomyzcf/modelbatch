@@ -44,6 +44,10 @@ class TaskManager {
     // 创建任务专用目录
     FileHelper.ensureDir(taskDir);
     
+    // 生成带任务标识的文件名
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
+    const shortTaskId = taskId.split('_').slice(-2).join('_'); // 使用哈希部分作为短ID
+    
     const taskInfo = {
       id: taskId,
       status: 'created',
@@ -53,9 +57,9 @@ class TaskManager {
       selectedFields: selectedFields,
       taskDir: taskDir,
       progressFile: path.join(taskDir, 'progress.json'),
-      errorFile: path.join(taskDir, 'errors.csv'),
-      successFile: path.join(taskDir, 'results.csv'),
-      rawResponseFile: path.join(taskDir, 'raw_responses.jsonl'),
+      errorFile: path.join(taskDir, `errors_${shortTaskId}_${timestamp}.csv`),
+      successFile: path.join(taskDir, `results_${shortTaskId}_${timestamp}.csv`),
+      rawResponseFile: path.join(taskDir, `raw_responses_${shortTaskId}_${timestamp}.jsonl`),
       metadataFile: path.join(taskDir, 'metadata.json')
     };
 

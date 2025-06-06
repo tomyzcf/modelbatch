@@ -70,9 +70,10 @@ class BatchProcessor {
    * @param {Array<number>} selectedFields - 选中的字段索引
    * @param {object} apiConfig - API配置
    * @param {object} promptConfig - 提示词配置
+   * @param {object} processOptions - 处理选项（包含startPos和endPos）
    * @returns {Promise<object>} 处理结果
    */
-  async startProcessing(dataFilePath, selectedFields, apiConfig, promptConfig) {
+  async startProcessing(dataFilePath, selectedFields, apiConfig, promptConfig, processOptions = {}) {
     if (this.isProcessing) {
       throw new Error('已有任务在处理中，请等待完成或先暂停');
     }
@@ -84,6 +85,7 @@ class BatchProcessor {
       Logger.info('开始批量处理任务');
       Logger.info(`数据文件: ${dataFilePath}`);
       Logger.info(`选中字段: ${selectedFields}`);
+      Logger.info(`处理范围: ${processOptions.startPos || 0} - ${processOptions.endPos || '全部'}`);
 
       // 1. 验证数据文件
       if (!fs.existsSync(dataFilePath)) {
@@ -127,8 +129,8 @@ class BatchProcessor {
       // 6. 初始化API提供商
       this.provider = ProviderFactory.createProvider(configManager.getApiConfig());
       
-      // 7. 读取CSV数据
-      const batchReader = new BatchReader(dataFilePath);
+      // 7. 读取CSV数据 - 传递处理选项
+      const batchReader = new BatchReader(dataFilePath, processOptions);
       const csvData = await this._readCSVData(batchReader);
       if (!csvData || csvData.length === 0) {
         throw new Error('CSV文件为空或读取失败');
@@ -247,23 +249,29 @@ class BatchProcessor {
    */
   async _readCSVData(batchReader) {
     try {
-      // 使用 BatchReader 的内部方法读取CSV数据
-      const csvData = await batchReader._readCSVData();
-      
-      if (!csvData || !csvData.headers || !csvData.rows) {
-        throw new Error('CSV数据格式错误');
-      }
-
       const results = [];
-      // **不要将表头作为第一行添加到数据中，表头仅用于字段映射**
       
-      // 将每行数据转换为数组格式
-      csvData.rows.forEach(row => {
-        const rowArray = csvData.headers.map(header => row[header] || '');
-        results.push(rowArray);
-      });
+      // 使用生成器方法读取批次数据，这样会应用startPos和endPos范围限制
+      for await (const batch of batchReader.readBatches()) {
+        // 将批次数据转换为数组格式
+        batch.forEach(item => {
+          // BatchReader的_processRow返回的格式是 {content, originalData, processedFields}
+          if (item.originalData) {
+            // 如果有原始数据，提取为数组格式
+            let rowArray = [];
+            if (Array.isArray(item.originalData)) {
+              rowArray = item.originalData;
+            } else if (typeof item.originalData === 'object') {
+              rowArray = Object.values(item.originalData);
+            } else {
+              rowArray = [item.originalData];
+            }
+            results.push(rowArray);
+          }
+        });
+      }
       
-      Logger.info(`成功读取CSV文件，共 ${results.length} 行数据（已排除表头）`);
+      Logger.info(`成功读取CSV文件，共 ${results.length} 行数据（已应用范围限制）`);
       return results;
       
     } catch (error) {
@@ -401,9 +409,13 @@ class BatchProcessor {
         const outputData = {
           position: position + 1,
           input: selectedContent,
-          output: typeof apiResult === 'string' ? apiResult : JSON.stringify(apiResult),
-          ...apiResult
+          output: typeof apiResult === 'string' ? apiResult : JSON.stringify(apiResult)
         };
+
+        // 如果API返回的是对象，展开其属性
+        if (typeof apiResult === 'object' && apiResult !== null) {
+          Object.assign(outputData, apiResult);
+        }
 
         return {
           success: true,

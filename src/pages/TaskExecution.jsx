@@ -240,7 +240,7 @@ function TaskExecution() {
       message.success('结果文件下载成功')
       } catch (error) {
         message.error('下载失败，请重试')
-    }
+      }
   }
 
   // 生成结果预览数据
@@ -266,8 +266,8 @@ function TaskExecution() {
         key: 4, 
         input: '赵六,30,深圳,数据分析师,zhaoliu@email.com', 
         output: '赵六先生，30岁，现居深圳，是一名专业的数据分析师。他拥有丰富的数据处理和分析经验，擅长运用各类数据分析工具...'
-      },
-      { 
+    },
+    {
         key: 5, 
         input: '钱七,27,杭州,软件开发,qianqi@email.com', 
         output: '钱七先生是一位27岁的软件开发工程师，目前就职于杭州某科技公司。他拥有扎实的编程基础和丰富的项目经验...'
@@ -275,14 +275,14 @@ function TaskExecution() {
     ]
     
     const columns = [
-      { 
+    {
         title: '输入数据', 
         dataIndex: 'input', 
         key: 'input', 
         width: 250,
         render: (text) => <Text code style={{ fontSize: '12px' }}>{text}</Text>
-      },
-      { 
+    },
+    {
         title: '生成结果', 
         dataIndex: 'output', 
         key: 'output', 
@@ -293,7 +293,7 @@ function TaskExecution() {
     
     setResultData(sampleData)
     setResultColumns(columns)
-  }
+    }
 
   // 打开结果预览
   const handlePreviewResults = () => {

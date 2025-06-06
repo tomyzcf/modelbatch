@@ -224,12 +224,19 @@ app.post('/api/execute-task', async (req, res) => {
     // 解析字段索引（转换为基于0的索引）
     const selectedFields = fields ? fields.map(f => parseInt(f) - 1) : [0]
     
+    // 解析数据处理范围参数
+    const processOptions = {
+      startPos: startPos ? parseInt(startPos) - 1 : 0, // 转换为基于0的索引
+      endPos: endPos ? parseInt(endPos) : null  // endPos在BatchReader中会被正确处理
+    }
+    
     // 生成任务ID
     const taskId = `task_${Date.now()}`
     
     console.log('开始执行批处理任务:', {
       inputFile: inputFilePath,
       selectedFields,
+      processOptions,
       apiConfig: { ...apiConfig, api_key: apiConfig.api_key ? 'sk-***' : 'missing' },
       promptConfig
     })
@@ -246,7 +253,7 @@ app.post('/api/execute-task', async (req, res) => {
     activeTasks.set(taskId, batchProcessor)
 
     // 异步执行任务
-    executeTaskAsync(taskId, batchProcessor, inputFilePath, selectedFields, apiConfig, promptConfig)
+    executeTaskAsync(taskId, batchProcessor, inputFilePath, selectedFields, apiConfig, promptConfig, processOptions)
       .catch(error => {
         console.error(`任务 ${taskId} 执行失败:`, error)
         broadcast({
@@ -275,7 +282,7 @@ app.post('/api/execute-task', async (req, res) => {
 })
 
 // 异步执行任务的函数
-async function executeTaskAsync(taskId, batchProcessor, dataFilePath, selectedFields, apiConfig, promptConfig) {
+async function executeTaskAsync(taskId, batchProcessor, dataFilePath, selectedFields, apiConfig, promptConfig, processOptions = {}) {
   try {
     // 广播任务开始
     broadcast({
@@ -285,7 +292,7 @@ async function executeTaskAsync(taskId, batchProcessor, dataFilePath, selectedFi
     })
 
     // 执行批处理任务
-    const result = await batchProcessor.startProcessing(dataFilePath, selectedFields, apiConfig, promptConfig)
+    const result = await batchProcessor.startProcessing(dataFilePath, selectedFields, apiConfig, promptConfig, processOptions)
     
     // 广播任务完成
     broadcast({

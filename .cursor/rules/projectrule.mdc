@@ -1,0 +1,21 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+重启服务用这个脚本 E:\Projects\modelbatch\start-project.bat
+
+
+
+测试数据用E:\Projects\modelbatch\testdata 里面的
+
+
+
+
+
+
+
+
+
+
+测试流程 1.导入数 2 导入配置文件 3执行任务验证结果。不要自己填写表单，或者apikey
