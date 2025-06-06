@@ -12,7 +12,8 @@ import {
   Select,
   message,
   Tooltip,
-  Modal
+  Modal,
+  Collapse
 } from 'antd'
 import { 
   EditOutlined, 
@@ -184,17 +185,16 @@ function PromptConfig() {
               </Card>
             )}
 
-            {/* 模板选择 */}
-            <Card title="选择模板" extra={
-              <Tooltip title="使用预设模板快速开始">
-                <BulbOutlined />
-              </Tooltip>
-            }>
-              <Row gutter={16}>
+            {/* 预设模板选择 */}
+            <Card title="预设模板" size="small">
+              <div style={{ marginBottom: 12, fontSize: 12, color: '#666' }}>
+                选择适合的模板快速开始，或跳过使用自定义配置
+              </div>
+              <Row gutter={[12, 12]}>
                 {Object.entries(PROMPT_TEMPLATES).map(([key, template]) => (
                   <Col span={8} key={key}>
                     <Card 
-                      size="small" 
+                      size="small"
                       hoverable
                       onClick={() => handleApplyTemplate(key)}
                       style={{ cursor: 'pointer' }}
@@ -210,10 +210,6 @@ function PromptConfig() {
                   </Col>
                 ))}
               </Row>
-              
-              <div style={{ marginTop: 16, textAlign: 'center' }}>
-                <Text type="secondary">点击模板卡片即可应用，或继续使用自定义配置</Text>
-              </div>
             </Card>
 
             {/* JSON格式配置 */}
@@ -251,13 +247,26 @@ function PromptConfig() {
                 {/* Task字段 */}
                 <div>
                   <Text strong>Task * <Text type="secondary">(任务描述)</Text></Text>
+                  <div style={{ marginTop: 8, marginBottom: 8, padding: 8, background: '#f0f9ff', borderRadius: 4, fontSize: 12 }}>
+                    <Text type="secondary">
+                      💡 <strong>变量说明：</strong>使用 <code style={{ background: '#e6f7ff', padding: '2px 4px', borderRadius: 2 }}>{'{input_text}'}</code> 作为占位符，运行时会自动替换为实际的数据内容
+                    </Text>
+                  </div>
                   <TextArea
                     value={promptConfig.task || ''}
                     onChange={(e) => handleContentChange('task', e.target.value)}
-                    placeholder="描述要执行的具体任务，使用 {input_text} 代表输入数据..."
+                    placeholder="请基于以下信息进行分析：{input_text}"
                     rows={4}
-                    style={{ marginTop: 8 }}
+                    style={{ marginTop: 4 }}
                   />
+                  {/* 变量预览 */}
+                  {promptConfig.task && promptConfig.task.includes('{input_text}') && (
+                    <div style={{ marginTop: 8, padding: 8, background: '#f9f9f9', borderRadius: 4, fontSize: 12 }}>
+                      <Text type="secondary">
+                        <strong>预览示例：</strong>{promptConfig.task.replace('{input_text}', '张三,28,北京,工程师')}
+                      </Text>
+                    </div>
+                  )}
                 </div>
 
                 {/* Output字段 */}
@@ -273,30 +282,54 @@ function PromptConfig() {
                   />
                 </div>
 
-                {/* Variables字段（可选） */}
-                <div>
-                  <Text strong>Variables <Text type="secondary">(变量定义，可选)</Text></Text>
-                  <TextArea
-                    value={promptConfig.variables || ''}
-                    onChange={(e) => handleContentChange('variables', e.target.value)}
-                    placeholder='{"language": "中文", "style": "正式"}'
-                    rows={3}
-                    style={{ marginTop: 8 }}
-                    status={jsonError && jsonError.includes('变量定义') ? 'error' : ''}
-                  />
-                </div>
+                {/* 高级选项 */}
+                <Collapse 
+                  ghost
+                  items={[
+                    {
+                      key: 'advanced',
+                      label: <Text type="secondary">高级选项 (Variables & Examples)</Text>,
+                      children: (
+                        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                          {/* Variables字段（可选） */}
+                          <div>
+                            <Text strong>Variables <Text type="secondary">(变量定义，可选)</Text></Text>
+                            <div style={{ marginTop: 4, marginBottom: 8, padding: 8, background: '#f6ffed', borderRadius: 4, fontSize: 12 }}>
+                              <Text type="secondary">
+                                💡 <strong>用法：</strong>定义可复用变量，如 <code>{'"language": "中文"'}</code>，在Task中用 <code>{'{language}'}</code> 引用
+                              </Text>
+                            </div>
+                            <TextArea
+                              value={promptConfig.variables || ''}
+                              onChange={(e) => handleContentChange('variables', e.target.value)}
+                              placeholder='{"language": "中文", "style": "正式"}'
+                              rows={3}
+                              style={{ marginTop: 4 }}
+                              status={jsonError && jsonError.includes('变量定义') ? 'error' : ''}
+                            />
+                          </div>
 
-                {/* Examples字段（可选） */}
-                <div>
-                  <Text strong>Examples <Text type="secondary">(示例数据，可选)</Text></Text>
-                  <TextArea
-                    value={promptConfig.examples || ''}
-                    onChange={(e) => handleContentChange('examples', e.target.value)}
-                    placeholder="提供一些示例输入和输出..."
-                    rows={3}
-                    style={{ marginTop: 8 }}
-                  />
-                </div>
+                          {/* Examples字段（可选） */}
+                          <div>
+                            <Text strong>Examples <Text type="secondary">(示例数据，可选)</Text></Text>
+                            <div style={{ marginTop: 4, marginBottom: 8, padding: 8, background: '#fff7e6', borderRadius: 4, fontSize: 12 }}>
+                              <Text type="secondary">
+                                💡 <strong>作用：</strong>提供输入输出示例，帮助AI更好理解任务要求，提高处理质量
+                              </Text>
+                            </div>
+                            <TextArea
+                              value={promptConfig.examples || ''}
+                              onChange={(e) => handleContentChange('examples', e.target.value)}
+                              placeholder="输入示例：产品名称：智能手表&#10;输出示例：{&quot;category&quot;: &quot;电子产品&quot;, &quot;type&quot;: &quot;可穿戴设备&quot;}"
+                              rows={4}
+                              style={{ marginTop: 4 }}
+                            />
+                          </div>
+                        </Space>
+                      )
+                    }
+                  ]}
+                />
               </Space>
             </Card>
 
@@ -333,46 +366,38 @@ function PromptConfig() {
 
         {/* 右侧配置说明 */}
         <Col span={6}>
-          <Card title="配置说明" size="small" style={{ position: 'sticky', top: 24 }}>
+          <Card title="快速指南" size="small" style={{ position: 'sticky', top: 24 }}>
             <Space direction="vertical" size="small">
               <div>
-                <Text strong>配置字段：</Text>
-                <ul style={{ marginTop: 8, marginLeft: 16, color: '#666' }}>
-                  <li><strong>System*：</strong>定义AI助手的身份和基本规则</li>
-                  <li><strong>Task*：</strong>描述要执行的具体任务</li>
-                  <li><strong>Output*：</strong>定义期望的输出JSON格式</li>
-                  <li><strong>Variables：</strong>可选，定义可复用的变量</li>
-                  <li><strong>Examples：</strong>可选，提供示例输入输出</li>
+                <Text strong>必填字段：</Text>
+                <ul style={{ marginTop: 4, marginLeft: 16, color: '#666', fontSize: 12 }}>
+                  <li><strong>System：</strong>AI角色定义</li>
+                  <li><strong>Task：</strong>处理任务描述</li>
+                  <li><strong>Output：</strong>JSON输出格式</li>
                 </ul>
               </div>
               <div>
-                <Text strong>变量使用：</Text>
-                <ul style={{ marginTop: 8, marginLeft: 16, color: '#666' }}>
-                  <li><strong>数据占位符：</strong>使用 {`{input_text}`} 代表要处理的数据</li>
-                  <li><strong>自定义变量：</strong>在variables中定义，用 {`{变量名}`} 引用</li>
-                  <li><strong>变量作用域：</strong>可在system和task字段中使用</li>
-                </ul>
+                <Text strong>关键变量：</Text>
+                <div style={{ marginTop: 4, padding: 6, background: '#f0f9ff', borderRadius: 4, fontSize: 12 }}>
+                  <code>{'{input_text}'}</code> - 数据占位符<br/>
+                  自定义变量在高级选项中配置
+                </div>
               </div>
               <div>
-                <Text strong>最佳实践：</Text>
-                <ul style={{ marginTop: 8, marginLeft: 16, color: '#666' }}>
-                  <li>输出格式必须是有效的JSON对象</li>
-                  <li>在task中明确指定数据处理要求</li>
-                  <li>使用examples提供高质量示例</li>
-                  <li>合理使用变量减少重复内容</li>
+                <Text strong>快速开始：</Text>
+                <ul style={{ marginTop: 4, marginLeft: 16, color: '#666', fontSize: 12 }}>
+                  <li>选择预设模板快速配置</li>
+                  <li>或自定义System和Task内容</li>
+                  <li>确保Output为有效JSON格式</li>
                 </ul>
               </div>
-              <div>
-                <Text strong>预设模板：</Text>
-                <ul style={{ marginTop: 8, marginLeft: 16, color: '#666' }}>
-                  <li><strong>数据提取：</strong>适合结构化信息提取</li>
-                  <li><strong>文本分析：</strong>适合情感分析、分类等</li>
-                  <li><strong>内容生成：</strong>适合文本生成、改写等</li>
-                </ul>
-              </div>
-              <Text type="secondary">
-                💡 提示：JSON格式更适合批量处理，能显著节省token消耗
-              </Text>
+              <Alert 
+                message="💡 JSON格式可节省60-80%的token消耗" 
+                type="info" 
+                size="small" 
+                showIcon={false}
+                style={{ fontSize: 11, marginTop: 8 }}
+              />
             </Space>
           </Card>
         </Col>

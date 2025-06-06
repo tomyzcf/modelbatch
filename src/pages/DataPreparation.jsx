@@ -37,6 +37,29 @@ import { parseFile } from '../utils/fileParser'
 const { Title, Text, Paragraph } = Typography
 const { Dragger } = Upload
 
+// 添加选中列高亮样式
+const fieldSelectionStyles = `
+  .field-selection-table .selected-column {
+    background-color: #e6f7ff !important;
+  }
+  .field-selection-table .selected-column .ant-table-cell {
+    background-color: #e6f7ff !important;
+    border-color: #1890ff !important;
+  }
+  .field-selection-table .selected-column th {
+    background-color: #bae7ff !important;
+    border-color: #1890ff !important;
+  }
+`
+
+// 注入样式
+const styleElement = document.createElement('style')
+styleElement.textContent = fieldSelectionStyles
+if (!document.head.querySelector('style[data-field-selection]')) {
+  styleElement.setAttribute('data-field-selection', 'true')
+  document.head.appendChild(styleElement)
+}
+
 function DataPreparation() {
   const { 
     fileData, 
