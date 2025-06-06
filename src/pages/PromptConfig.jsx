@@ -46,6 +46,7 @@ function PromptConfig() {
     promptConfig, 
     setPromptConfig,
     fileData,
+    fieldSelection,
     setCurrentStep 
   } = useAppStore()
   
@@ -154,6 +155,47 @@ function PromptConfig() {
     return preview
   }
 
+  // 生成完整的API请求预览
+  const generateFullApiPreview = () => {
+    const { system, task, output, variables, examples } = promptConfig
+    
+    // 获取选中的字段数据 - 使用正确的fieldSelection
+    const selectedFields = fileData.headers?.filter((_, index) => 
+      fieldSelection.selectedFields?.includes(index)
+    ) || []
+    
+    // 构建第一行数据示例（只包含选中的字段）
+    const firstRowData = selectedFields.length > 0 && fileData.previewData && fileData.previewData[0] 
+      ? selectedFields.map((field, index) => {
+          const columnIndex = fileData.headers?.indexOf(field) || index
+          return fileData.previewData[0][columnIndex] || ''
+        }).join(',')
+      : '张三,28,北京,工程师'
+    
+    // 构建完整的提示词内容（使用实际换行而不是转义字符）
+    let fullPrompt = `System: ${system || '你是一个专业的AI助手，能够准确理解和处理用户的数据请求。'}\n\n`
+    fullPrompt += `Task: ${(task || '请处理以下数据：{input_text}').replace('{input_text}', firstRowData)}\n\n`
+    fullPrompt += `Output: ${output || '{ "result": "处理结果", "status": "处理状态" }'}\n\n`
+    
+    if (variables && variables.trim()) {
+      fullPrompt += `Variables: ${variables}\n\n`
+    }
+    
+    if (examples && examples.trim()) {
+      fullPrompt += `Examples: ${examples}\n\n`
+    }
+    
+    // Token预估（简单估算，大约4个字符=1个token）
+    const estimatedTokens = Math.ceil(fullPrompt.length / 4)
+    
+    return {
+      fullPrompt,
+      firstRowData,
+      selectedFields,
+      estimatedTokens
+    }
+  }
+
   const validation = validatePromptConfig()
   const isValid = validation.valid
 
@@ -249,28 +291,21 @@ function PromptConfig() {
                   <Text strong>Task * <Text type="secondary">(任务描述)</Text></Text>
                   <div style={{ marginTop: 8, marginBottom: 8, padding: 8, background: '#f0f9ff', borderRadius: 4, fontSize: 12 }}>
                     <Text type="secondary">
-                      💡 <strong>变量说明：</strong>使用 <code style={{ background: '#e6f7ff', padding: '2px 4px', borderRadius: 2 }}>{'{input_text}'}</code> 作为占位符，运行时会自动替换为实际的数据内容
+                      💡 <strong>描述您希望对数据进行什么处理</strong>，系统会自动将数据内容填入您的指令中
                     </Text>
                   </div>
                   <TextArea
-                    value={promptConfig.task || ''}
-                    onChange={(e) => handleContentChange('task', e.target.value)}
-                    placeholder="请基于以下信息进行分析：{input_text}"
+                    value={promptConfig.task ? promptConfig.task.replace('{input_text}', '').replace('请处理以下数据：\n\n', '').trim() : ''}
+                    onChange={(e) => {
+                      // 后台自动添加{input_text}占位符，用户只需填写处理需求
+                      const userInput = e.target.value.trim()
+                      const taskContent = userInput ? `请处理以下数据：\n\n{input_text}\n\n${userInput}` : `请处理以下数据：\n\n{input_text}`
+                      handleContentChange('task', taskContent)
+                    }}
+                    placeholder="例如：分析这些数据的特征并分类归纳"
                     rows={4}
                     style={{ marginTop: 4 }}
                   />
-                  {/* 变量预览 */}
-                  {promptConfig.task && promptConfig.task.includes('{input_text}') && (
-                    <div style={{ marginTop: 8, padding: 8, background: '#f9f9f9', borderRadius: 4, fontSize: 12 }}>
-                      <Text type="secondary">
-                        <strong>预览示例：</strong>{promptConfig.task.replace('{input_text}', 
-                          fileData.previewData && fileData.previewData[0] 
-                            ? fileData.previewData[0].join(',')
-                            : '张三,28,北京,工程师'
-                        )}
-                      </Text>
-                    </div>
-                  )}
                 </div>
 
                 {/* Output字段 */}
@@ -377,15 +412,8 @@ function PromptConfig() {
                 <ul style={{ marginTop: 4, marginLeft: 16, color: '#666', fontSize: 12 }}>
                   <li><strong>System：</strong>AI角色定义</li>
                   <li><strong>Task：</strong>处理任务描述</li>
-                  <li><strong>Output：</strong>JSON输出格式</li>
+                  <li><strong>Output：</strong>输出格式</li>
                 </ul>
-              </div>
-              <div>
-                <Text strong>关键变量：</Text>
-                <div style={{ marginTop: 4, padding: 6, background: '#f0f9ff', borderRadius: 4, fontSize: 12 }}>
-                  <code>{'{input_text}'}</code> - 数据占位符<br/>
-                  自定义变量在高级选项中配置
-                </div>
               </div>
               <div>
                 <Text strong>快速开始：</Text>
@@ -395,46 +423,112 @@ function PromptConfig() {
                   <li>确保Output为有效JSON格式</li>
                 </ul>
               </div>
-              <Alert 
-                message="💡 提示：使用结构化JSON输出便于后续处理" 
-                type="info" 
-                size="small" 
-                showIcon={false}
-                style={{ fontSize: 11, marginTop: 8 }}
-              />
+              
+              {/* 完整预览按钮 */}
+              <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 12, marginTop: 12 }}>
+                <Button 
+                  type="primary" 
+                  block 
+                  icon={<EyeOutlined />}
+                  onClick={() => setPreviewVisible(true)}
+                  size="small"
+                >
+                  完整提示词预览
+                </Button>
+                <div style={{ marginTop: 8, fontSize: 11, color: '#999', textAlign: 'center' }}>
+                  查看发送给API的完整内容
+                </div>
+              </div>
             </Space>
           </Card>
         </Col>
 
         {/* 预览模态框 */}
         <Modal
-          title="提示词预览"
+          title={
+            <Space>
+              <EyeOutlined />
+              <span>完整提示词预览</span>
+              <span style={{ fontSize: 12, color: '#999', fontWeight: 'normal' }}>
+                (发送给API的实际内容)
+              </span>
+            </Space>
+          }
           open={previewVisible}
           onCancel={() => setPreviewVisible(false)}
           footer={[
             <Button key="copy" icon={<CopyOutlined />} onClick={() => {
-              copyToClipboard(generatePreview())
+              const preview = generateFullApiPreview()
+              copyToClipboard(preview.fullPrompt)
               setPreviewVisible(false)
             }}>
-              复制预览内容
+              复制完整内容
             </Button>,
             <Button key="close" onClick={() => setPreviewVisible(false)}>
               关闭
             </Button>
           ]}
-          width={800}
+          width={900}
         >
-          <div style={{ 
-            background: '#f5f5f5', 
-            padding: '16px', 
-            borderRadius: '6px',
-            fontFamily: 'monospace',
-            whiteSpace: 'pre-wrap',
-            maxHeight: '400px',
-            overflow: 'auto'
-          }}>
-            {generatePreview()}
-          </div>
+          {(() => {
+            const preview = generateFullApiPreview()
+            return (
+              <div>
+                {/* 统计信息 */}
+                <div style={{ 
+                  marginBottom: 16, 
+                  padding: 12, 
+                  background: '#f8f9fa', 
+                  borderRadius: 6,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <div>
+                    <Text strong>选中字段：</Text>
+                    <Text style={{ marginLeft: 8 }}>
+                      {preview.selectedFields.length > 0 
+                        ? preview.selectedFields.join(', ') 
+                        : '姓名, 年龄, 城市, 职业'
+                      }
+                    </Text>
+                  </div>
+                  <div>
+                    <Text strong>预估Token：</Text>
+                    <Text style={{ marginLeft: 8, color: '#1890ff' }}>~{preview.estimatedTokens}</Text>
+                  </div>
+                </div>
+                
+                {/* 示例数据 */}
+                <div style={{ 
+                  marginBottom: 16, 
+                  padding: 8, 
+                  background: '#e6f7ff', 
+                  borderRadius: 4, 
+                  fontSize: 12 
+                }}>
+                  <Text strong>第一条数据示例：</Text>
+                  <br />
+                  <code>{preview.firstRowData}</code>
+                </div>
+                
+                {/* 完整提示词内容 */}
+                <div style={{ 
+                  background: '#f5f5f5', 
+                  padding: '16px', 
+                  borderRadius: '6px',
+                  fontFamily: 'monospace',
+                  whiteSpace: 'pre-wrap',
+                  maxHeight: '500px',
+                  overflow: 'auto',
+                  fontSize: '13px',
+                  lineHeight: '1.6'
+                }}>
+                  {preview.fullPrompt}
+                </div>
+              </div>
+            )
+          })()}
         </Modal>
       </Row>
     </div>

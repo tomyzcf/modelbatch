@@ -178,7 +178,7 @@ function TaskExecution() {
       message.error('请先完成前面步骤的配置')
       return
     }
-    
+
     setExecuting(true)
     try {
       await executeTask()
@@ -235,11 +235,11 @@ function TaskExecution() {
 
   // 下载结果文件
   const handleDownload = () => {
-    try {
+      try {
       downloadResult()
       message.success('结果文件下载成功')
-    } catch (error) {
-      message.error('下载失败，请重试')
+      } catch (error) {
+        message.error('下载失败，请重试')
     }
   }
 
@@ -320,8 +320,8 @@ function TaskExecution() {
             <PlayCircleOutlined style={{ marginRight: 8 }} />
             任务执行
           </Title>
-        </div>
-
+            </div>
+            
         {/* 任务控制 */}
         <Card>
           <Row gutter={24} align="middle">
@@ -473,31 +473,31 @@ function TaskExecution() {
         {/* 任务完成结果 */}
         {pagePhase === 'completed' && (
           <Card>
-            <Result
-              status="success"
-              title="数据处理完成！"
+      <Result
+        status="success"
+        title="数据处理完成！"
               subTitle={`成功处理 ${taskStatus.successCount} 条数据，失败 ${taskStatus.errorCount} 条，总耗时 ${formatElapsedTime()}`}
-              extra={[
-                <Button 
-                  type="primary" 
-                  icon={<DownloadOutlined />} 
-                  onClick={handleDownload} 
+        extra={[
+          <Button 
+            type="primary" 
+            icon={<DownloadOutlined />} 
+            onClick={handleDownload} 
                   disabled={!taskStatus.successFile && !taskStatus.resultFilePath}
                   key="download"
-                >
-                  下载结果文件
-                </Button>,
+          >
+            下载结果文件
+          </Button>,
                 <Button 
                   icon={<EyeOutlined />} 
                   onClick={handlePreviewResults}
                   key="preview"
                 >
-                  预览结果
-                </Button>
-              ]}
-            />
-          </Card>
-        )}
+            预览结果
+          </Button>
+        ]}
+      />
+        </Card>
+      )}
 
         {/* 实时日志（调试模式） */}
         <Card title="后端实时日志">
@@ -515,8 +515,8 @@ function TaskExecution() {
             }}
           >
             <div>等待后端日志...</div>
-          </div>
-        </Card>
+              </div>
+            </Card>
 
         {/* 错误信息 */}
         {taskStatus.currentStatus === 'error' && (
