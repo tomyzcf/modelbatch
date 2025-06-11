@@ -4,9 +4,11 @@
 [![GitHub stars](https://img.shields.io/github/stars/your-username/modelbatch.svg)](https://github.com/your-username/modelbatch/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/your-username/modelbatch.svg)](https://github.com/your-username/modelbatch/network)
 [![GitHub issues](https://img.shields.io/github/issues/your-username/modelbatch.svg)](https://github.com/your-username/modelbatch/issues)
-[![License](https://img.shields.io/github/license/your-username/modelbatch.svg)](https://github.com/your-username/modelbatch/blob/main/LICENSE)
+[![License](https://img.shields.io/badge/license-Non--Commercial-red)](https://github.com/your-username/modelbatch/blob/main/LICENSE)
 
 > 🚀 基于React + Node.js的现代化LLM批量数据处理工具，支持便携版一键部署
+
+
 
 ## 📋 项目简介
 
@@ -252,9 +254,33 @@ npm run build:production
 - 🐛 [GitHub Issues](https://github.com/your-username/modelbatch/issues)
 - 💬 [GitHub Discussions](https://github.com/your-username/modelbatch/discussions)
 
+## ⚠️ 重要免责声明
+
+**请在使用前仔细阅读以下声明：**
+
+### 🔒 许可证限制
+- **非商业使用**：本软件仅限个人学习、研究和非商业用途
+- **商业限制**：禁止将本软件用于任何商业目的或付费产品
+- **企业使用**：企业内部使用需要书面许可
+
+### ⚠️ 使用风险
+- **API费用**：用户需自行承担第三方API（OpenAI、DeepSeek等）的使用费用
+- **数据安全**：不建议处理敏感、机密或个人隐私数据
+- **服务可用性**：作者不保证软件的持续可用性和稳定性
+- **法律责任**：用户需确保使用符合当地法律法规
+
+### 🛡️ 免责条款
+本软件按"原样"提供，作者不承担任何担保责任，包括但不限于：
+- 软件功能的准确性和完整性
+- 使用过程中可能产生的数据丢失
+- 第三方API服务的中断或费用
+- 因软件使用导致的任何直接或间接损失
+
 ## 📄 许可证
 
-本项目基于 [MIT许可证](./LICENSE) 开源。
+本项目基于 **个人和非商业使用许可证** 开源。详见 [LICENSE](./LICENSE) 文件。
+
+**商业使用需要单独授权，请联系作者获得许可。**
 
 ## ⭐ Star History
 

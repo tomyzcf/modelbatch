@@ -4,6 +4,7 @@
   "version": "2.0.0",
   "description": "基于React + Node.js的现代化LLM批量数据处理工具，支持便携版部署",
   "keywords": ["llm", "batch-processing", "react", "nodejs", "openai", "deepseek", "csv", "excel", "json"],
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "repository": {
     "type": "git",

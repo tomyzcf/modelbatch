@@ -1,1 +1,111 @@
- 
+name: 构建和发布
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-portable:
+    runs-on: windows-latest
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 设置Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: 安装依赖
+      run: npm ci
+      
+    - name: 构建前端
+      run: npm run build
+      
+    - name: 构建便携版
+      run: build-portable.bat
+      
+    - name: 打包便携版
+      run: |
+        cd dist
+        7z a -tzip ../LLM批处理工具-便携版-${{ github.ref_name }}.zip portable/
+        
+    - name: 上传构建产物
+      uses: actions/upload-artifact@v4
+      with:
+        name: portable-build
+        path: LLM批处理工具-便携版-*.zip
+
+  create-release:
+    needs: build-portable
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 下载构建产物
+      uses: actions/download-artifact@v4
+      with:
+        name: portable-build
+        
+    - name: 创建发布
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          LLM批处理工具-便携版-*.zip
+        body: |
+          ## 🚀 LLM批处理工具 ${{ github.ref_name }}
+          
+          ## ⚠️ 重要提醒
+          
+          **🔒 非商业许可证：本软件仅限个人学习研究使用，禁止商业用途**
+          
+          **💰 API费用自负：使用第三方LLM服务产生的费用由用户承担**
+          
+          **🛡️ 使用风险自担：请仔细阅读LICENSE和TERMS_OF_USE.md**
+          
+          ### 📦 便携版下载
+          
+          下载 `LLM批处理工具-便携版-${{ github.ref_name }}.zip`，解压后：
+          1. 阅读LICENSE和TERMS_OF_USE.md文件
+          2. 双击 `启动工具.bat` 即可使用
+          
+          ### ✨ 主要功能
+          
+          - ✅ 支持CSV、Excel、JSON文件批量处理
+          - ✅ 兼容OpenAI、DeepSeek、阿里云百炼等多种LLM API
+          - ✅ 实时WebSocket进度推送和状态监控
+          - ✅ 断点续传功能，支持任务中断恢复
+          - ✅ 现代化React前端界面
+          - ✅ 便携版一键启动，无需复杂配置
+          
+          ### 📋 系统要求
+          
+          - Windows 10+
+          - Node.js 16+ 已安装
+          - 端口 3001 可用
+          
+          ### 🚨 使用限制
+          
+          - **个人使用**：仅限个人学习、研究和非商业用途
+          - **商业禁止**：禁止销售、出租或集成到付费产品
+          - **企业使用**：需要单独的商业许可证
+          - **责任自负**：API费用、数据安全和使用风险由用户承担
+          
+          ### 📖 文档链接
+          
+          - [使用说明](https://github.com/${{ github.repository }}/blob/main/README.md)
+          - [部署指南](https://github.com/${{ github.repository }}/blob/main/DEPLOYMENT.md)
+          - [许可证](https://github.com/${{ github.repository }}/blob/main/LICENSE)
+          - [使用条款](https://github.com/${{ github.repository }}/blob/main/TERMS_OF_USE.md)
+          
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
