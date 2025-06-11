@@ -1,9 +1,18 @@
 {
-  "name": "llm-batch-frontend",
-  "private": true,
-  "version": "0.0.0",
-  "description": "LLM批处理工具前端界面",
+  "name": "llm-batch-tool",
+  "private": false,
+  "version": "2.0.0",
+  "description": "基于React + Node.js的现代化LLM批量数据处理工具，支持便携版部署",
+  "keywords": ["llm", "batch-processing", "react", "nodejs", "openai", "deepseek", "csv", "excel", "json"],
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/modelbatch.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/modelbatch/issues"
+  },
+  "homepage": "https://github.com/your-username/modelbatch#readme",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -15,7 +24,9 @@
     "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
     "build-electron": "npm run build && electron-builder",
     "build:portable": "build-portable.bat",
-    "build:production": "npm run build"
+    "build:production": "npm run build",
+    "prepare:release": "scripts/prepare-release.bat",
+    "release": "npm run prepare:release"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",

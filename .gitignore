@@ -77,8 +77,10 @@ app/
 app-builds/
 release/
 
-# Portable build outputs
+# Build and release outputs
 dist/portable/
+release-report.txt
+*.zip
 
 # Python related (if any)
 __pycache__/

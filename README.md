@@ -1,6 +1,12 @@
 # LLM批处理工具
 
-> 🚀 基于React + Node.js的现代化LLM批量数据处理工具
+[![GitHub release](https://img.shields.io/github/release/your-username/modelbatch.svg)](https://github.com/your-username/modelbatch/releases)
+[![GitHub stars](https://img.shields.io/github/stars/your-username/modelbatch.svg)](https://github.com/your-username/modelbatch/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/your-username/modelbatch.svg)](https://github.com/your-username/modelbatch/network)
+[![GitHub issues](https://img.shields.io/github/issues/your-username/modelbatch.svg)](https://github.com/your-username/modelbatch/issues)
+[![License](https://img.shields.io/github/license/your-username/modelbatch.svg)](https://github.com/your-username/modelbatch/blob/main/LICENSE)
+
+> 🚀 基于React + Node.js的现代化LLM批量数据处理工具，支持便携版一键部署
 
 ## 📋 项目简介
 
@@ -229,12 +235,33 @@ npm run build:production
 
 ## 🤝 贡献
 
-欢迎提交Issue和Pull Request来改进这个项目！
+我们欢迎所有形式的贡献！请查看：
+
+- 📋 [贡献指南](./CONTRIBUTING.md) - 了解如何参与项目开发
+- 🐛 [提交Issue](https://github.com/your-username/modelbatch/issues) - 报告问题或建议功能
+- 🔧 [提交PR](https://github.com/your-username/modelbatch/pulls) - 贡献代码改进
+
+## 📞 技术支持
+
+如需技术支持或有任何问题，请查看：
+
+- 📖 [部署指南](./DEPLOYMENT.md)
+- 📊 [项目信息](./PROJECT_INFO.json)
+- 📝 [更新日志](./CHANGELOG.md)
+- 🔒 [安全策略](./SECURITY.md)
+- 🐛 [GitHub Issues](https://github.com/your-username/modelbatch/issues)
+- 💬 [GitHub Discussions](https://github.com/your-username/modelbatch/discussions)
 
 ## 📄 许可证
 
-本项目采用MIT许可证。
+本项目基于 [MIT许可证](./LICENSE) 开源。
+
+## ⭐ Star History
+
+如果这个项目对你有帮助，请给个⭐️支持一下！
+
+[![Star History Chart](https://api.star-history.com/svg?repos=your-username/modelbatch&type=Date)](https://star-history.com/#your-username/modelbatch&Date)
 
 ---
 
-**注意**: 这是一个从Python版本完全重构的Node.js版本，保持了所有原有功能的同时，提供了更好的用户体验和性能表现。 
+*感谢使用LLM批处理工具！欢迎Star⭐、Fork🍴和贡献🤝！* 
