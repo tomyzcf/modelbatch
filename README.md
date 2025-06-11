@@ -309,11 +309,22 @@ npm run build:production
 
 **商业使用需要单独授权，请联系作者获得许可。**
 
+## 📥 下载便携版
+
+**💡 想要开箱即用的便携版？**
+
+👉 **[点击下载最新便携版](https://github.com/tomyzcf/modelbatch/releases/latest)** 
+
+1. 下载 `LLM批处理工具-便携版-v*.zip` 文件
+2. 解压到任意目录
+3. 双击 `启动工具.bat` 即可使用
+4. 无需安装依赖，Windows 10+ 即可运行
+
 ## ⭐ Star History
 
 如果这个项目对你有帮助，请给个⭐️支持一下！
 
-[![Star History Chart](https://api.star-history.com/svg?repos=your-username/modelbatch&type=Date)](https://star-history.com/#your-username/modelbatch&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=tomyzcf/modelbatch&type=Date)](https://star-history.com/#tomyzcf/modelbatch&Date)
 
 ---
 
