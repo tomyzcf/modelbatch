@@ -23,7 +23,21 @@ const wss = new WebSocketServer({ server })
 // 中间件
 app.use(cors())
 app.use(express.json())
-app.use(express.static('dist'))
+
+// 静态文件服务配置 - 支持EXE打包
+const isDev = process.env.NODE_ENV === 'development'
+const staticPath = isDev ? 
+  path.join(__dirname, '../dist') : 
+  path.join(__dirname, '../dist')
+
+// 确保静态文件目录存在
+try {
+  await fs.access(staticPath)
+  app.use(express.static(staticPath))
+  console.log('静态文件服务路径:', staticPath)
+} catch (error) {
+  console.warn('静态文件目录不存在:', staticPath)
+}
 
 // 文件上传配置
 const storage = multer.diskStorage({
@@ -449,15 +463,73 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
+// 捕获所有非API路由，用于SPA路由
+app.get('*', (req, res) => {
+  // 跳过API路由
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'API路由不存在' })
+  }
+  
+  // 为SPA提供index.html
+  const indexPath = path.join(staticPath, 'index.html')
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      console.error('发送index.html失败:', err)
+      res.status(500).send('服务器内部错误')
+    }
+  })
+})
+
+// 初始化必要目录
+async function initializeDirectories() {
+  const dirs = [
+    path.join(__dirname, '../temp'),
+    path.join(__dirname, '../temp/uploads'),
+    path.join(__dirname, '../temp/config'),
+    path.join(__dirname, '../outputData'),
+    path.join(__dirname, '../outputData/tasks')
+  ]
+  
+  for (const dir of dirs) {
+    try {
+      await fs.mkdir(dir, { recursive: true })
+      console.log(`目录已创建: ${dir}`)
+    } catch (error) {
+      console.warn(`目录创建失败: ${dir}`, error.message)
+    }
+  }
+}
+
 // 启动服务器
 const PORT = process.env.PORT || 3001
 
 // 设置Logger的WebSocket广播回调
 Logger.setBroadcastCallback(broadcast);
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log(`后端服务器启动在端口 ${PORT}`)
   console.log(`WebSocket服务器启动在端口 ${PORT}`)
+  
+  // 初始化目录
+  await initializeDirectories()
+  
+  // 自动打开浏览器（仅在EXE模式下）
+  if (process.pkg) {
+    console.log('检测到PKG打包环境，准备打开浏览器...')
+    try {
+      const { spawn } = await import('child_process')
+      const url = `http://localhost:${PORT}`
+      
+      // Windows
+      if (process.platform === 'win32') {
+        spawn('cmd', ['/c', 'start', url], { detached: true })
+        console.log(`已尝试打开浏览器访问: ${url}`)
+      }
+    } catch (error) {
+      console.warn('自动打开浏览器失败:', error.message)
+      console.log(`请手动访问: http://localhost:${PORT}`)
+    }
+  }
 })
 
 // 优雅关闭

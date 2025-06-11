@@ -1,7 +1,7 @@
 {
   "name": "LLM批处理工具",
   "version": "2.0.0",
-  "description": "基于React + Node.js的现代化LLM批量数据处理工具，支持多种文件格式、API提供商和实时进度监控",
+  "description": "基于React + Node.js的现代化LLM批量数据处理工具，支持便携版部署、多种文件格式、API提供商和实时进度监控",
   "repository": {
     "type": "git",
     "url": "https://github.com/your-username/modelbatch.git"
@@ -14,7 +14,7 @@
     "type": "Full-Stack Web Application",
     "frontend": "React 18 + Vite + Ant Design",
     "backend": "Node.js + Express + Socket.IO",
-    "deployment": "Docker / PM2 / Local Development"
+    "deployment": "便携版 / Docker / PM2 / 本地开发"
   },
   
   "features": [
@@ -47,10 +47,11 @@
       "utilities": ["fs", "path", "csv-parser", "xlsx"]
     },
     "deployment": {
+      "portable": "便携版打包",
       "containerization": "Docker",
-      "processManager": "PM2",
+      "processManager": "PM2", 
       "reverseProxy": "Nginx (optional)",
-      "environments": ["Development", "Production", "Docker"]
+      "environments": ["便携版", "开发环境", "生产环境", "Docker"]
     }
   },
   
@@ -82,15 +83,19 @@
       "npm run dev:full": "同时启动前后端服务（推荐）"
     },
     "production": {
-      "npm run build": "构建前端生产版本",
+      "npm run build:production": "构建生产版本",
       "npm run preview": "预览生产版本",
       "npm ci --only=production": "安装生产依赖",
       "node server/index.js": "启动生产服务器"
     },
+    "portable": {
+      "npm run build:portable": "构建便携版（Windows批处理脚本）",
+      "build-portable.bat": "执行便携版构建"
+    },
     "deployment": {
       "pm2 start ecosystem.config.js": "使用PM2启动服务",
       "docker-compose up -d": "使用Docker Compose部署",
-      "npm run build && pm2 restart all": "构建并重启服务"
+      "npm run build:production && pm2 restart all": "构建并重启服务"
     }
   },
   
@@ -118,6 +123,14 @@
   
   "deployment": {
     "environments": {
+      "portable": {
+        "description": "便携版部署（推荐）",
+        "target": "单机使用、快速分发",
+        "requirements": ["Node.js 16+"],
+        "commands": ["build-portable.bat"],
+        "output": "dist/portable/ 文件夹",
+        "usage": "双击 '启动工具.bat' 即可使用"
+      },
       "development": {
         "description": "本地开发环境",
         "commands": ["npm install", "npm run dev:full"],
@@ -133,7 +146,7 @@
           "安装Node.js和npm",
           "克隆项目代码",
           "npm ci --only=production",
-          "npm run build",
+          "npm run build:production",
           "配置PM2",
           "启动服务"
         ]

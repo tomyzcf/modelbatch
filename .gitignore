@@ -77,6 +77,9 @@ app/
 app-builds/
 release/
 
+# Portable build outputs
+dist/portable/
+
 # Python related (if any)
 __pycache__/
 *.py[cod]

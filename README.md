@@ -18,14 +18,34 @@
 
 ## 🚀 快速开始
 
-### 环境要求
+### 方式一：便携版使用（推荐）
 
+**无需安装，开箱即用的便携版本：**
+
+1. **获取便携版**
+   - 运行 `build-portable.bat` 构建便携包
+   - 或下载预构建的便携版文件夹
+
+2. **使用方法**
+   - 将 `dist/portable/` 文件夹复制到目标电脑
+   - 双击 `启动工具.bat` 启动程序
+   - 浏览器会自动打开工具界面
+
+3. **系统要求**
+   - Windows 10+
+   - Node.js 16+ 已安装
+   - 端口3001可用
+
+### 方式二：开发环境
+
+**用于开发和自定义的完整环境：**
+
+#### 环境要求
 - Node.js 16+
 - npm 或 yarn
 - 至少512MB内存
 
-### 安装与启动
-
+#### 安装与启动
 ```bash
 # 1. 克隆项目
 git clone <repository-url>
@@ -34,7 +54,7 @@ cd modelbatch
 # 2. 安装依赖
 npm install
 
-# 3. 启动服务（推荐）
+# 3. 启动开发服务
 npm run dev:full
 
 # 或者分别启动
@@ -42,10 +62,26 @@ npm run server    # 仅启动后端服务
 npm run dev       # 仅启动前端开发服务器
 ```
 
-### 访问应用
-
-- 🌐 **前端界面**: http://localhost:5173
+#### 访问应用
+- 🌐 **开发界面**: http://localhost:5173
 - 🔧 **后端API**: http://localhost:3001
+
+### 方式三：服务器部署
+
+**适用于生产环境的服务器部署：**
+
+```bash
+# 1. 构建生产版本
+npm run build:production
+
+# 2. 启动生产服务器
+npm run server
+
+# 3. 访问应用
+# http://your-server:3001
+```
+
+详细部署说明请参考 [DEPLOYMENT.md](./DEPLOYMENT.md)
 
 ## 📁 项目结构
 
@@ -168,6 +204,12 @@ npm run build
 
 # 生产环境预览
 npm run preview
+
+# 构建便携版（Windows）
+npm run build:portable
+
+# 生产版本构建
+npm run build:production
 ```
 
 ### 目录说明

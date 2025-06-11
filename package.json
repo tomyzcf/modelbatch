@@ -13,7 +13,9 @@
     "dev:full": "concurrently \"npm run server\" \"npm run dev\"",
     "electron": "electron .",
     "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
-    "build-electron": "npm run build && electron-builder"
+    "build-electron": "npm run build && electron-builder",
+    "build:portable": "build-portable.bat",
+    "build:production": "npm run build"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",
@@ -45,7 +47,7 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
     "vite": "^5.0.8",
-    "wait-on": "^7.2.0"
-  },
+          "wait-on": "^7.2.0"
+    },
   "main": "electron/main.js"
 }
