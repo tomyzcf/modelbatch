@@ -9,6 +9,22 @@
 
 > 🚀 基于React + Node.js的现代化LLM批量数据处理工具，专为Windows环境设计，支持便携版一键部署
 
+## 📥 直接下载便携版
+
+<div align="center">
+
+### 🎯 想要最简单的使用方式？
+
+**👇 点击下载最新便携版，解压即用！**
+
+[![下载便携版](https://img.shields.io/badge/下载便携版-v2.1.0-brightgreen?style=for-the-badge&logo=download)](https://github.com/tomyzcf/modelbatch/releases/latest)
+
+**✨ 无需环境配置 | 🚀 解压即用 | 💻 Windows 10+ 专用**
+
+</div>
+
+---
+
 ## 📋 兼容性说明
 
 | 项目           | 支持状态 | 说明                                    |
