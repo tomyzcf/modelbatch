@@ -27,7 +27,7 @@ jobs:
       run: npm run build
       
     - name: 构建便携版
-      run: build-portable-ci.bat
+      run: .\build-portable-ci.bat
       
     - name: 打包便携版
       run: |
