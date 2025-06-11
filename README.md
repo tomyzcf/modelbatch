@@ -1,12 +1,27 @@
-# LLM批处理工具
+# LLM批处理工具 (Windows专用)
 
-[![GitHub release](https://img.shields.io/github/release/your-username/modelbatch.svg)](https://github.com/your-username/modelbatch/releases)
-[![GitHub stars](https://img.shields.io/github/stars/your-username/modelbatch.svg)](https://github.com/your-username/modelbatch/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/your-username/modelbatch.svg)](https://github.com/your-username/modelbatch/network)
-[![GitHub issues](https://img.shields.io/github/issues/your-username/modelbatch.svg)](https://github.com/your-username/modelbatch/issues)
-[![License](https://img.shields.io/badge/license-Non--Commercial-red)](https://github.com/your-username/modelbatch/blob/main/LICENSE)
+[![GitHub release](https://img.shields.io/github/release/tomyzcf/modelbatch.svg)](https://github.com/tomyzcf/modelbatch/releases)
+[![GitHub stars](https://img.shields.io/github/stars/tomyzcf/modelbatch.svg)](https://github.com/tomyzcf/modelbatch/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/tomyzcf/modelbatch.svg)](https://github.com/tomyzcf/modelbatch/network)
+[![GitHub issues](https://img.shields.io/github/issues/tomyzcf/modelbatch.svg)](https://github.com/tomyzcf/modelbatch/issues)
+[![License](https://img.shields.io/badge/license-Personal%20%26%20Non--Commercial-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%2B-blue.svg)]()
 
-> 🚀 基于React + Node.js的现代化LLM批量数据处理工具，支持便携版一键部署
+> 🚀 基于React + Node.js的现代化LLM批量数据处理工具，专为Windows环境设计，支持便携版一键部署
+
+## 📋 兼容性说明
+
+| 项目           | 支持状态 | 说明                                    |
+|----------------|----------|----------------------------------------|
+| **操作系统**   | Windows 10+ | ✅ 主要支持平台，推荐使用便携版       |
+|                | Windows 11  | ✅ 完全兼容                           |
+|                | Linux       | ⚠️ 开发环境可运行，不提供便携版支持    |
+|                | macOS       | ⚠️ 开发环境可运行，不提供便携版支持    |
+| **Node.js**    | 16.x        | ✅ 最低要求                           |
+|                | 18.x        | ✅ 推荐版本                           |
+|                | 20.x+       | ✅ 最佳性能                           |
+| **架构**       | x64         | ✅ 主要支持                           |
+|                | ARM64       | ❌ 不支持                             |
 
 
 
@@ -26,25 +41,35 @@
 
 ## 🚀 快速开始
 
-### 方式一：便携版使用（推荐）
+### 🎯 方式一：直接下载便携版（最简单，推荐）
 
-**无需安装，开箱即用的便携版本：**
+**无需环境配置，解压即用的便携版：**
 
-1. **获取便携版**
-   - 运行 `build-portable.bat` 构建便携包
-   - 或下载预构建的便携版文件夹
+1. **📥 获取便携版**
+   - 🔗 **[点击下载最新便携版](https://github.com/tomyzcf/modelbatch/releases/latest)** 
+   - 下载 `LLM批处理工具-便携版-v*.zip` 文件
 
-2. **使用方法**
-   - 将 `dist/portable/` 文件夹复制到目标电脑
-   - 双击 `启动工具.bat` 启动程序
-   - 浏览器会自动打开工具界面
+2. **💻 系统要求**
+   - **操作系统**：Windows 10+ （仅支持Windows）
+   - **Node.js**：16+ 已安装 ([下载地址](https://nodejs.org/))
+   - **内存**：建议8GB以上
+   - **端口**：3001端口可用
+   - **磁盘空间**：至少1GB可用空间
 
-3. **系统要求**
-   - Windows 10+
-   - Node.js 16+ 已安装
-   - 端口3001可用
+3. **🚀 使用方法**
+   ```
+   1. 解压下载的ZIP文件到任意目录
+   2. 双击 "启动工具.bat" 启动程序
+   3. 浏览器会自动打开工具界面
+   4. 关闭窗口即可停止服务
+   ```
 
-### 方式二：开发环境
+4. **⚠️ 重要提醒**
+   - 首次使用请阅读 `LICENSE` 和 `TERMS_OF_USE.md` 文件
+   - API费用（OpenAI、DeepSeek等）需用户自行承担
+   - 仅限个人学习研究使用，禁止商业用途
+
+### 💾 方式二：开发环境
 
 **用于开发和自定义的完整环境：**
 
@@ -74,9 +99,9 @@ npm run dev       # 仅启动前端开发服务器
 - 🌐 **开发界面**: http://localhost:5173
 - 🔧 **后端API**: http://localhost:3001
 
-### 方式三：服务器部署
+### 🖥️ 方式三：服务器部署
 
-**适用于生产环境的服务器部署：**
+**适用于生产环境的服务器部署（Linux/Windows Server）：**
 
 ```bash
 # 1. 构建生产版本
@@ -88,6 +113,8 @@ npm run server
 # 3. 访问应用
 # http://your-server:3001
 ```
+
+**⚠️ 注意：** 虽然可以部署到Linux服务器，但本项目主要为Windows桌面环境设计，推荐使用便携版。
 
 详细部署说明请参考 [DEPLOYMENT.md](./DEPLOYMENT.md)
 
