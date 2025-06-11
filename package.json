@@ -21,10 +21,6 @@
     "preview": "vite preview",
     "server": "node server/index.js",
     "dev:full": "concurrently \"npm run server\" \"npm run dev\"",
-    "electron": "electron .",
-    "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
-    "build-electron": "npm run build && electron-builder",
-    "build:portable": "build-portable.bat",
     "build:production": "npm run build",
     "prepare:release": "scripts/prepare-release.bat",
     "release": "npm run prepare:release"
@@ -52,14 +48,12 @@
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@vitejs/plugin-react": "^4.2.1",
-    "electron": "^28.0.0",
-    "electron-builder": "^24.9.1",
+
     "eslint": "^8.55.0",
     "eslint-plugin-react": "^7.33.2",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
     "vite": "^5.0.8",
           "wait-on": "^7.2.0"
-    },
-  "main": "electron/main.js"
+    }
 }

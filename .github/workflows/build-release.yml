@@ -27,12 +27,28 @@ jobs:
       run: npm run build
       
     - name: 构建便携版
-      run: .\build-portable-ci.bat
+      run: .\scripts\build-for-ci.bat
       
+    - name: 检查构建结果
+      run: |
+        if (Test-Path "dist\portable") {
+          Write-Host "✅ 便携版目录已创建"
+          Get-ChildItem "dist\portable" | ForEach-Object { Write-Host "  - $($_.Name)" }
+        } else {
+          Write-Host "❌ 便携版目录不存在"
+          exit 1
+        }
+        
     - name: 打包便携版
       run: |
-        cd dist
-        7z a -tzip ../LLM批处理工具-便携版-${{ github.ref_name }}.zip portable/
+        Compress-Archive -Path "dist\portable\*" -DestinationPath "LLM批处理工具-便携版-${{ github.ref_name }}.zip" -Force
+        if (Test-Path "LLM批处理工具-便携版-${{ github.ref_name }}.zip") {
+          $size = (Get-Item "LLM批处理工具-便携版-${{ github.ref_name }}.zip").Length / 1MB
+          Write-Host "✅ 打包完成，文件大小: $([math]::Round($size, 2)) MB"
+        } else {
+          Write-Host "❌ 打包失败"
+          exit 1
+        }
         
     - name: 上传构建产物
       uses: actions/upload-artifact@v4
