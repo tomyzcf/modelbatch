@@ -41,15 +41,15 @@ let staticConfigured = false
 
 // 尝试找到存在的静态文件路径
 for (const testPath of possiblePaths) {
-  try {
+try {
     await fs.access(testPath)
     await fs.access(path.join(testPath, 'index.html'))
     staticPath = testPath
-    app.use(express.static(staticPath))
-    console.log('静态文件服务路径:', staticPath)
+  app.use(express.static(staticPath))
+  console.log('静态文件服务路径:', staticPath)
     staticConfigured = true
     break
-  } catch (error) {
+} catch (error) {
     console.log('尝试路径失败:', testPath)
   }
 }
@@ -532,13 +532,17 @@ function startServer(port) {
     console.log(`后端服务器启动在端口 ${port}`)
     console.log(`WebSocket服务器启动在端口 ${port}`)
     console.log(`访问地址: http://localhost:${port}`)
-    
-    // 初始化目录
-    await initializeDirectories()
-    
+  
+  // 初始化目录
+  await initializeDirectories()
+  
     // 自动打开浏览器（便携版和EXE模式下）
-    const isPortable = process.env.PORTABLE_MODE === 'true' || process.pkg || 
-                      process.cwd().includes('portable')
+    // 检测多种便携版条件：环境变量、pkg打包、目录包含portable、或者存在start-tool.bat启动脚本
+    const isPortable = process.env.PORTABLE_MODE === 'true' || 
+                      process.pkg || 
+                      process.cwd().includes('portable') ||
+                      process.cwd().includes('LLM') ||  // GitHub构建版本包含LLM
+                      fs.access('../../start-tool.bat').then(() => true).catch(() => false)
     
     if (isPortable) {
       console.log('检测到便携版环境，准备打开浏览器...')
@@ -555,6 +559,7 @@ function startServer(port) {
               console.log(`已打开浏览器访问: ${url}`)
             }
           } catch (err) {
+            console.log(`自动打开浏览器失败: ${err.message}`)
             console.log(`请手动访问: http://localhost:${port}`)
           }
         }, 3000)
@@ -562,8 +567,11 @@ function startServer(port) {
         console.warn('自动打开浏览器失败:', error.message)
         console.log(`请手动访问: http://localhost:${port}`)
       }
+    } else {
+      console.log('未检测到便携版环境，跳过浏览器自动打开')
+      console.log(`请手动访问: http://localhost:${port}`)
     }
-  })
+})
   
   serverInstance.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
