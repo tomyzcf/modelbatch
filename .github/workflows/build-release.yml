@@ -6,6 +6,10 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+  actions: read
+
 jobs:
   build-portable:
     runs-on: windows-latest
@@ -125,3 +129,5 @@ jobs:
         prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # 如果权限不足，可以使用Personal Access Token
+        # GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
