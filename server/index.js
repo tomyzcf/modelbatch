@@ -24,19 +24,38 @@ const wss = new WebSocketServer({ server })
 app.use(cors())
 app.use(express.json())
 
-// 静态文件服务配置 - 支持EXE打包
+// 静态文件服务配置 - 支持便携版打包
 const isDev = process.env.NODE_ENV === 'development'
-const staticPath = isDev ? 
-  path.join(__dirname, '../dist') : 
-  path.join(__dirname, '../dist')
 
-// 确保静态文件目录存在
-try {
-  await fs.access(staticPath)
-  app.use(express.static(staticPath))
-  console.log('静态文件服务路径:', staticPath)
-} catch (error) {
-  console.warn('静态文件目录不存在:', staticPath)
+// 在便携版中，尝试多个可能的静态文件路径
+const possiblePaths = isDev ? 
+  [path.join(__dirname, '../dist')] :
+  [
+    path.join(process.cwd(), 'dist'),           // ./dist (相对于当前工作目录)
+    path.join(__dirname, '../dist'),           // ../dist (相对于server目录)
+    path.resolve('./dist')                     // 绝对路径解析
+  ]
+
+let staticPath = null
+let staticConfigured = false
+
+// 尝试找到存在的静态文件路径
+for (const testPath of possiblePaths) {
+  try {
+    await fs.access(testPath)
+    await fs.access(path.join(testPath, 'index.html'))
+    staticPath = testPath
+    app.use(express.static(staticPath))
+    console.log('静态文件服务路径:', staticPath)
+    staticConfigured = true
+    break
+  } catch (error) {
+    console.log('尝试路径失败:', testPath)
+  }
+}
+
+if (!staticConfigured) {
+  console.error('无法找到静态文件目录，尝试的路径:', possiblePaths)
 }
 
 // 文件上传配置
@@ -500,37 +519,70 @@ async function initializeDirectories() {
   }
 }
 
-// 启动服务器
-const PORT = process.env.PORT || 3001
+// 启动服务器 - 支持动态端口选择
+const DEFAULT_PORT = 3001
+const PORT = parseInt(process.env.PORT) || DEFAULT_PORT
 
 // 设置Logger的WebSocket广播回调
 Logger.setBroadcastCallback(broadcast);
 
-server.listen(PORT, async () => {
-  console.log(`后端服务器启动在端口 ${PORT}`)
-  console.log(`WebSocket服务器启动在端口 ${PORT}`)
-  
-  // 初始化目录
-  await initializeDirectories()
-  
-  // 自动打开浏览器（仅在EXE模式下）
-  if (process.pkg) {
-    console.log('检测到PKG打包环境，准备打开浏览器...')
-    try {
-      const { spawn } = await import('child_process')
-      const url = `http://localhost:${PORT}`
-      
-      // Windows
-      if (process.platform === 'win32') {
-        spawn('cmd', ['/c', 'start', url], { detached: true })
-        console.log(`已尝试打开浏览器访问: ${url}`)
+// 尝试启动服务器，如果端口被占用则尝试其他端口
+function startServer(port) {
+  const serverInstance = server.listen(port, async () => {
+    console.log(`后端服务器启动在端口 ${port}`)
+    console.log(`WebSocket服务器启动在端口 ${port}`)
+    console.log(`访问地址: http://localhost:${port}`)
+    
+    // 初始化目录
+    await initializeDirectories()
+    
+    // 自动打开浏览器（便携版和EXE模式下）
+    const isPortable = process.env.PORTABLE_MODE === 'true' || process.pkg || 
+                      process.cwd().includes('portable')
+    
+    if (isPortable) {
+      console.log('检测到便携版环境，准备打开浏览器...')
+      try {
+        // 延迟3秒让服务器完全启动
+        setTimeout(async () => {
+          try {
+            const { spawn } = await import('child_process')
+            const url = `http://localhost:${port}`
+            
+            // Windows
+            if (process.platform === 'win32') {
+              spawn('cmd', ['/c', 'start', url], { detached: true, stdio: 'ignore' })
+              console.log(`已打开浏览器访问: ${url}`)
+            }
+          } catch (err) {
+            console.log(`请手动访问: http://localhost:${port}`)
+          }
+        }, 3000)
+      } catch (error) {
+        console.warn('自动打开浏览器失败:', error.message)
+        console.log(`请手动访问: http://localhost:${port}`)
       }
-    } catch (error) {
-      console.warn('自动打开浏览器失败:', error.message)
-      console.log(`请手动访问: http://localhost:${PORT}`)
     }
-  }
-})
+  })
+  
+  serverInstance.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      if (port < DEFAULT_PORT + 10) {
+        console.log(`端口 ${port} 被占用，尝试端口 ${port + 1}...`)
+        startServer(port + 1)
+      } else {
+        console.error(`无法找到可用端口 (尝试了 ${DEFAULT_PORT}-${port})`)
+        console.error('请手动停止占用端口的服务或设置环境变量 PORT 指定其他端口')
+        process.exit(1)
+      }
+    } else {
+      console.error('服务器启动失败:', err)
+      process.exit(1)
+    }
+  })
+}
+
+startServer(PORT)
 
 // 优雅关闭
 process.on('SIGTERM', () => {
