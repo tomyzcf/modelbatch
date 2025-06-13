@@ -11,7 +11,9 @@ class BatchProcessor {
   constructor() {
     this.provider = null;
     this.progressTracker = null;
-    this.taskManager = new TaskManager();
+    // 确保TaskManager使用正确的路径
+    const outputDir = path.join(process.cwd(), 'outputData');
+    this.taskManager = new TaskManager(outputDir);
     this.isProcessing = false;
     this.isPaused = false;
     this.currentTask = null;

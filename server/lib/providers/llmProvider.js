@@ -78,8 +78,7 @@ class LLMProvider {
       const url = `${this.baseUrl}${this.endpointPath}`;
       Logger.info(`发送API请求: ${url}`);
       
-      // 调试日志：检查发送的API密钥
-      Logger.info(`请求使用的API密钥: ${this.apiKey.substring(0, 10)}...${this.apiKey.substring(this.apiKey.length - 4)}`);
+              // 调试日志：不显示API密钥信息以保护隐私
 
       // 发送HTTP请求
       const response = await fetch(url, {

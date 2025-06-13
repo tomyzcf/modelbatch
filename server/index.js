@@ -439,8 +439,8 @@ app.get('/api/download/:filename', async (req, res) => {
     const filename = req.params.filename
     console.log(`请求下载文件: ${filename}`)
     
-    // 直接在tasks目录中查找文件
-    const tasksDir = path.join(__dirname, 'outputData/tasks')
+    // 直接在tasks目录中查找文件，使用与TaskManager一致的路径
+    const tasksDir = path.join(process.cwd(), 'outputData/tasks')
     let filePath = null
     
     try {
@@ -502,11 +502,11 @@ app.get('*', (req, res) => {
 // 初始化必要目录
 async function initializeDirectories() {
   const dirs = [
-    path.join(__dirname, '../temp'),
-    path.join(__dirname, '../temp/uploads'),
-    path.join(__dirname, '../temp/config'),
-    path.join(__dirname, '../outputData'),
-    path.join(__dirname, '../outputData/tasks')
+    path.join(process.cwd(), 'temp'),
+    path.join(process.cwd(), 'temp/uploads'),
+    path.join(process.cwd(), 'temp/config'),
+    path.join(process.cwd(), 'outputData'),
+    path.join(process.cwd(), 'outputData/tasks')
   ]
   
   for (const dir of dirs) {
