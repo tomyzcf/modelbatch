@@ -11,6 +11,9 @@ build/
 *.tgz
 *.tar.gz
 
+# Tools directory (contains downloaded node.exe)
+tools/
+
 # Environment variables
 .env
 .env.local

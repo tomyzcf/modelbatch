@@ -27,9 +27,6 @@ jobs:
     - name: 安装依赖
       run: npm ci
       
-    - name: 构建前端
-      run: npm run build
-      
     - name: 构建便携版
       run: .\scripts\build-for-ci.bat
       
@@ -38,6 +35,29 @@ jobs:
         if (Test-Path "dist\portable") {
           Write-Host "✅ 便携版目录已创建"
           Get-ChildItem "dist\portable" | ForEach-Object { Write-Host "  - $($_.Name)" }
+          
+          # 检查关键文件
+          if (Test-Path "dist\portable\app\node.exe") {
+            $nodeSize = (Get-Item "dist\portable\app\node.exe").Length / 1MB
+            Write-Host "✅ Node.js 可执行文件: $([math]::Round($nodeSize, 2)) MB"
+          } else {
+            Write-Host "❌ Node.js 可执行文件不存在"
+            exit 1
+          }
+          
+          if (Test-Path "dist\portable\app\server\index.js") {
+            Write-Host "✅ 服务器文件存在"
+          } else {
+            Write-Host "❌ 服务器文件不存在"
+            exit 1
+          }
+          
+          if (Test-Path "dist\portable\start-tool.bat") {
+            Write-Host "✅ 启动脚本存在"
+          } else {
+            Write-Host "❌ 启动脚本不存在"
+            exit 1
+          }
         } else {
           Write-Host "❌ 便携版目录不存在"
           exit 1
@@ -88,13 +108,13 @@ jobs:
           
           **💰 API费用自负：使用第三方LLM服务产生的费用由用户承担**
           
-          **🛡️ 使用风险自担：请仔细阅读LICENSE和TERMS_OF_USE.md**
+          **🛡️ 使用风险自担：请仔细阅读LICENSE文件**
           
           ### 📦 便携版下载
           
           下载 `LLM批处理工具-便携版-${{ github.ref_name }}.zip`，解压后：
-          1. 阅读LICENSE和TERMS_OF_USE.md文件
-          2. 双击 `启动工具.bat` 即可使用
+          1. 阅读LICENSE文件
+          2. 双击 `start-tool.bat` 即可使用
           
           ### ✨ 主要功能
           
@@ -108,8 +128,8 @@ jobs:
           ### 📋 系统要求
           
           - Windows 10+
-          - Node.js 16+ 已安装
           - 端口 3001 可用
+          - 至少 1GB 可用磁盘空间
           
           ### 🚨 使用限制
           
@@ -121,9 +141,7 @@ jobs:
           ### 📖 文档链接
           
           - [使用说明](https://github.com/${{ github.repository }}/blob/main/README.md)
-          - [部署指南](https://github.com/${{ github.repository }}/blob/main/DEPLOYMENT.md)
           - [许可证](https://github.com/${{ github.repository }}/blob/main/LICENSE)
-          - [使用条款](https://github.com/${{ github.repository }}/blob/main/TERMS_OF_USE.md)
           
         draft: false
         prerelease: false

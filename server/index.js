@@ -542,27 +542,30 @@ function startServer(port) {
                       process.pkg || 
                       process.cwd().includes('portable') ||
                       process.cwd().includes('LLM') ||  // GitHub构建版本包含LLM
-                      fs.access('../../start-tool.bat').then(() => true).catch(() => false)
+                      await Promise.all([
+                        fs.access('start-tool.bat').then(() => true).catch(() => false),
+                        fs.access('../start-tool.bat').then(() => true).catch(() => false),
+                        fs.access('../../start-tool.bat').then(() => true).catch(() => false)
+                      ]).then(results => results.some(Boolean))
     
     if (isPortable) {
       console.log('检测到便携版环境，准备打开浏览器...')
       try {
         // 延迟3秒让服务器完全启动
-        setTimeout(async () => {
-          try {
-            const { spawn } = await import('child_process')
-            const url = `http://localhost:${port}`
-            
-            // Windows
-            if (process.platform === 'win32') {
-              spawn('cmd', ['/c', 'start', url], { detached: true, stdio: 'ignore' })
-              console.log(`已打开浏览器访问: ${url}`)
-            }
-          } catch (err) {
-            console.log(`自动打开浏览器失败: ${err.message}`)
-            console.log(`请手动访问: http://localhost:${port}`)
+        await new Promise(resolve => setTimeout(resolve, 3000))
+        try {
+          const { spawn } = await import('child_process')
+          const url = `http://localhost:${port}`
+          
+          // Windows
+          if (process.platform === 'win32') {
+            spawn('cmd', ['/c', 'start', url], { detached: true, stdio: 'ignore' })
+            console.log(`已打开浏览器访问: ${url}`)
           }
-        }, 3000)
+        } catch (err) {
+          console.log(`自动打开浏览器失败: ${err.message}`)
+          console.log(`请手动访问: http://localhost:${port}`)
+        }
       } catch (error) {
         console.warn('自动打开浏览器失败:', error.message)
         console.log(`请手动访问: http://localhost:${port}`)
