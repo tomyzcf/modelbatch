@@ -10,9 +10,7 @@ import {
   Col,
   Statistic,
   Tag,
-  Modal,
   message,
-  Table,
   Result
 } from 'antd'
 import { 
@@ -21,7 +19,6 @@ import {
   StopOutlined,
   DownloadOutlined,
   ReloadOutlined,
-  EyeOutlined,
   FileExcelOutlined,
   CheckCircleOutlined,
   InfoCircleOutlined
@@ -50,10 +47,7 @@ function TaskExecution() {
     currentTaskId
   } = useAppStore()
   
-  const [resultModalVisible, setResultModalVisible] = useState(false)
   const [executing, setExecuting] = useState(false)
-  const [resultData, setResultData] = useState([])
-  const [resultColumns, setResultColumns] = useState([])
   
   // 初始化WebSocket连接
   useEffect(() => {
@@ -243,63 +237,7 @@ function TaskExecution() {
       }
   }
 
-  // 生成结果预览数据
-  const generateResultData = () => {
-    // 使用真实的结果数据样本
-    const sampleData = [
-      { 
-        key: 1, 
-        input: '张三,28,北京,工程师,zhangsan@email.com', 
-        output: '张三先生，28岁，现居北京，是一名专业的工程师。他拥有扎实的技术背景和丰富的项目经验，专注于工程领域的创新与实践...'
-      },
-      { 
-        key: 2, 
-        input: '李四,32,上海,设计师,lisi@email.com', 
-        output: '李四先生是一位32岁的资深设计师，目前居住在上海。他在设计领域拥有丰富的经验，擅长将创意与实用性完美结合...'
-      },
-      { 
-        key: 3, 
-        input: '王五,25,广州,产品经理,wangwu@email.com', 
-        output: '王五先生，25岁，现居广州，担任产品经理一职。他拥有丰富的产品管理经验，擅长市场调研、需求分析和产品规划...'
-      },
-      { 
-        key: 4, 
-        input: '赵六,30,深圳,数据分析师,zhaoliu@email.com', 
-        output: '赵六先生，30岁，现居深圳，是一名专业的数据分析师。他拥有丰富的数据处理和分析经验，擅长运用各类数据分析工具...'
-    },
-    {
-        key: 5, 
-        input: '钱七,27,杭州,软件开发,qianqi@email.com', 
-        output: '钱七先生是一位27岁的软件开发工程师，目前就职于杭州某科技公司。他拥有扎实的编程基础和丰富的项目经验...'
-      }
-    ]
-    
-    const columns = [
-    {
-        title: '输入数据', 
-        dataIndex: 'input', 
-        key: 'input', 
-        width: 250,
-        render: (text) => <Text code style={{ fontSize: '12px' }}>{text}</Text>
-    },
-    {
-        title: '生成结果', 
-        dataIndex: 'output', 
-        key: 'output', 
-        ellipsis: true,
-        render: (text) => <Text style={{ fontSize: '12px' }}>{text}</Text>
-      },
-    ]
-    
-    setResultData(sampleData)
-    setResultColumns(columns)
-    }
 
-  // 打开结果预览
-  const handlePreviewResults = () => {
-    generateResultData()
-    setResultModalVisible(true)
-  }
 
   // 根据任务状态确定页面阶段
   const getPagePhase = () => {
@@ -486,13 +424,6 @@ function TaskExecution() {
                   key="download"
           >
             下载结果文件
-          </Button>,
-                <Button 
-                  icon={<EyeOutlined />} 
-                  onClick={handlePreviewResults}
-                  key="preview"
-                >
-            预览结果
           </Button>
         ]}
       />
@@ -528,39 +459,7 @@ function TaskExecution() {
           />
         )}
 
-        {/* 结果预览模态框 */}
-        <Modal
-          title="结果预览（生成内容样本）"
-          open={resultModalVisible}
-          onCancel={() => setResultModalVisible(false)}
-          width={1000}
-          footer={[
-            <Button key="download" type="primary" icon={<DownloadOutlined />} onClick={() => {
-              setResultModalVisible(false)
-              handleDownload()
-            }}>
-              下载完整结果
-            </Button>,
-            <Button key="close" onClick={() => setResultModalVisible(false)}>
-              关闭
-            </Button>
-          ]}
-        >
-          <div style={{ marginBottom: 16 }}>
-            <Alert
-              type="info"
-              message="显示部分结果样本，完整数据请下载文件查看"
-              showIcon
-            />
-          </div>
-          <Table
-            columns={resultColumns}
-            dataSource={resultData}
-            pagination={{ pageSize: 10 }}
-            scroll={{ x: 800, y: 400 }}
-            size="small"
-          />
-        </Modal>
+
       </Space>
     </div>
   )
