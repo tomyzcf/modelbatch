@@ -98,50 +98,44 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          LLM批处理工具-便携版-*.zip
+          LLM批处理工具-免安装版-*.zip
         body: |
           ## 🚀 LLM批处理工具 ${{ github.ref_name }}
           
-          ## ⚠️ 重要提醒
+          一个简单易用的AI批量处理工具，让您轻松处理大量数据！
           
-          **🔒 非商业许可证：本软件仅限个人学习研究使用，禁止商业用途**
+          ### 📦 快速开始
           
-          **💰 API费用自负：使用第三方LLM服务产生的费用由用户承担**
-          
-          **🛡️ 使用风险自担：请仔细阅读LICENSE文件**
-          
-          ### 📦 便携版下载
-          
-          下载 `LLM批处理工具-便携版-${{ github.ref_name }}.zip`，解压后：
-          1. 阅读LICENSE文件
-          2. 双击 `start-tool.bat` 即可使用
+          1. 下载 `LLM批处理工具-便携版-${{ github.ref_name }}.zip`
+          2. 解压到任意目录
+          3. 双击 `start-tool.bat` 即可使用
           
           ### ✨ 主要功能
           
-          - ✅ 支持CSV、Excel、JSON文件批量处理
-          - ✅ 兼容OpenAI、DeepSeek、阿里云百炼等多种LLM API
-          - ✅ 实时WebSocket进度推送和状态监控
-          - ✅ 断点续传功能，支持任务中断恢复
-          - ✅ 现代化React前端界面
-          - ✅ 便携版一键启动，无需复杂配置
+          - 📊 **批量处理文件** - 支持CSV、Excel、JSON格式
+          - 🤖 **多种AI模型** - 兼容OpenAI、DeepSeek、阿里云百炼等
+          - ⚡ **实时进度** - 可视化进度条，随时查看处理状态  
+          - 🔄 **断点续传** - 意外中断后可继续处理
+          - 🎨 **简洁界面** - 现代化设计，操作简单直观
+          - 📱 **免安装** - 绿色便携，下载即用
+          
+          ### 💡 使用场景
+          
+          - 批量翻译文本内容
+          - 数据分析和总结
+          - 内容审核和分类
+          - 文本格式转换
+          - 其他AI批处理任务
           
           ### 📋 系统要求
           
-          - Windows 10+
-          - 端口 3001 可用
-          - 至少 1GB 可用磁盘空间
+          - Windows 10 或更新版本
+          - 约 1GB 可用空间
           
-          ### 🚨 使用限制
+          ### 📖 更多帮助
           
-          - **个人使用**：仅限个人学习、研究和非商业用途
-          - **商业禁止**：禁止销售、出租或集成到付费产品
-          - **企业使用**：需要单独的商业许可证
-          - **责任自负**：API费用、数据安全和使用风险由用户承担
-          
-          ### 📖 文档链接
-          
-          - [使用说明](https://github.com/${{ github.repository }}/blob/main/README.md)
-          - [许可证](https://github.com/${{ github.repository }}/blob/main/LICENSE)
+          - [使用教程](https://github.com/${{ github.repository }}/blob/main/README.md)
+          - [常见问题](https://github.com/${{ github.repository }}/issues)
           
         draft: false
         prerelease: false
