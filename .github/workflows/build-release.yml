@@ -65,9 +65,9 @@ jobs:
         
     - name: 打包便携版
       run: |
-        Compress-Archive -Path "dist\portable\*" -DestinationPath "LLM批处理工具-便携版-${{ github.ref_name }}.zip" -Force
-        if (Test-Path "LLM批处理工具-便携版-${{ github.ref_name }}.zip") {
-          $size = (Get-Item "LLM批处理工具-便携版-${{ github.ref_name }}.zip").Length / 1MB
+        Compress-Archive -Path "dist\portable\*" -DestinationPath "LLM批处理工具-免安装版-${{ github.ref_name }}.zip" -Force
+        if (Test-Path "LLM批处理工具-免安装版-${{ github.ref_name }}.zip") {
+          $size = (Get-Item "LLM批处理工具-免安装版-${{ github.ref_name }}.zip").Length / 1MB
           Write-Host "✅ 打包完成，文件大小: $([math]::Round($size, 2)) MB"
         } else {
           Write-Host "❌ 打包失败"
@@ -78,7 +78,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: portable-build
-        path: LLM批处理工具-便携版-*.zip
+        path: LLM批处理工具-免安装版-*.zip
 
   create-release:
     needs: build-portable
@@ -93,6 +93,12 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: portable-build
+        path: ./artifacts
+        
+    - name: 移动文件到根目录
+      run: |
+        mv ./artifacts/LLM批处理工具-免安装版-*.zip ./
+        ls -la LLM批处理工具-免安装版-*.zip
         
     - name: 创建发布
       uses: softprops/action-gh-release@v1
@@ -106,7 +112,7 @@ jobs:
           
           ### 📦 快速开始
           
-          1. 下载 `LLM批处理工具-便携版-${{ github.ref_name }}.zip`
+          1. 下载 `LLM批处理工具-免安装版-${{ github.ref_name }}.zip`
           2. 解压到任意目录
           3. 双击 `start-tool.bat` 即可使用
           
